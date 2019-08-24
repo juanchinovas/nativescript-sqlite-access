@@ -1,0 +1,4 @@
+#Fri Aug 16 20:09:59 AST 2019
+base.0=/home/jnovas/NativescriptProj/nativescript-sqlite-access/demo/platforms/android/app/build/intermediates/transforms/dexMerger/debug/0
+path.0=classes.dex
+renamed.0=classes.dex

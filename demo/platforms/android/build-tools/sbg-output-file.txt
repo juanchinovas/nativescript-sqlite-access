@@ -1,0 +1,1 @@
+/home/jnovas/NativescriptProj/nativescript-sqlite-access/demo/platforms/android/app/src/main/java

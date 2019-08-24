@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="org.nativescript.nativescript_sqlite_access">
+  <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+</manifest>
