@@ -2,45 +2,106 @@ import { IDatabase } from './common/IDatabase';
 import * as fs from "tns-core-modules/file-system"
 import { DbCreationOptions, ReturnType } from './common/Common';
 
+//Super private variable
+let _db: interop.Reference<any>;
+let _dataReturnedType: ReturnType;
+
+/**
+ * This class allow you to connect to sqlite database on Android|iOS
+ */
+
 class SqliteAccess implements IDatabase {
-    
-    private _db: interop.Reference<any>;
-    private _dataReturnedType: ReturnType;
+
+    /**
+     * Default constuctor
+     * @param db interop.Reference<any>
+     * @param returnType ReturnType
+     */
     constructor(db: interop.Reference<any>, 
         returnType: ReturnType) {
-        this._db = db;
-        this._dataReturnedType = returnType;
+        _db = db;
+        _dataReturnedType = returnType;
     }
 
+    /**
+     * Insert a row into table with the values and return the last
+     * inserted id in the table
+     * 
+     * @param table 
+     * @param values 
+     * 
+     * @returns number
+     */
     insert(table: string, values: { [key: string]: any; }): number {
-        this.execSQL(`INSERT INTO ${table} (${Object.keys(values).join(",")}) VALUES(${__mapToContentValues(values, true)})`);
-        return 1
+        this.execSQL(`INSERT INTO ${table} (${Object.keys(values).join(",")}) VALUES(${__mapToAddOrUpdateValues(values, true)})`);
+        let value = sqlite3_last_insert_rowid(_db.value);
+        return Number(value);
     }    
     
+    /**
+     * Replace a row in the table with the values and 
+     * return the number of rows affeted
+     * 
+     * @param table 
+     * @param values
+     * 
+     * @returns number 
+     */
     replace(table: string, values: { [key: string]: any; }): number {
-        return this.insert(table, values);
+        this.execSQL(`REPLACE INTO ${table} (${Object.keys(values).join(",")}) VALUES(${__mapToAddOrUpdateValues(values, true)})`);
+        let value = sqlite3_changes(_db.value);
+        return Number(value);
     }
 
+    /**
+     * Update a row in the table with the values and the filters. 
+     * return the number of rows affeted
+     * 
+     * @param table 
+     * @param values
+     * @param whereClause 
+     * @param whereArs 
+     * 
+     * @returns number 
+     */
     update(table: string, values: { [key: string]: any; }, whereClause: string, whereArs: any[]): number {
         whereClause = whereClause && "WHERE " + whereClause.replace(/\?/g, <any>__replaceQuestionMarkForParams(whereArs)) || "";
-        this.execSQL(`UPDATE ${table} SET ${__mapToContentValues(values, false)} ${whereClause}`);
-        return 1;
+        this.execSQL(`UPDATE ${table} SET ${__mapToAddOrUpdateValues(values, false)} ${whereClause}`);
+        let value = sqlite3_changes(_db.value);
+        return Number(value);
     }
 
-    delete(table: string, whereClause?: string, whereArs?: any[]): number {
-        whereClause = whereClause && "WHERE " + whereClause.replace(/\?/g, <any>__replaceQuestionMarkForParams(whereArs)) || "";
+    /**
+     * Delete a row from the table with the filter.
+     * return the number of rows affeted
+     * 
+     * @param table 
+     * @param whereClause? 
+     * @param whereArgs?
+     * 
+     * @returns number
+     */
+    delete(table: string, whereClause?: string, whereArgs?: any[]): number {
+        whereClause = whereClause && "WHERE " + whereClause.replace(/\?/g, <any>__replaceQuestionMarkForParams(whereArgs)) || "";
         this.execSQL(`DELETE FROM ${table} ${whereClause}`);
-        return 1;
+        let value = sqlite3_changes(_db.value);
+        return Number(value);
     }
 
+    /**
+     * Execute a query selector
+     * @param sql 
+     * @param params 
+     * 
+     * @returns Promise<Array<any>>
+     */
     select(sql: string, params?: any[]): Promise<Array<any>> {
-        const me = this;
         sql = sql.replace(/\?/g, <any>__replaceQuestionMarkForParams(params));
         return new Promise(function(resolve, error) {
             try {
-                let cursor =  __execQueryAndReturnStatement(sql, me._db);
+                let cursor =  __execQueryAndReturnStatement(sql, _db);
                 const __processCursor = __prepareToProcessCursor(cursor);
-                const result = __processCursor(me._dataReturnedType);
+                const result = __processCursor(_dataReturnedType);
                 resolve(result);
             } catch(ex) {
                 error(ex)
@@ -48,67 +109,113 @@ class SqliteAccess implements IDatabase {
         });
     }
 
+    /**
+     * Execute a query selector
+     * 
+     * @param table 
+     * @param columns 
+     * @param selection 
+     * @param selectionArgs 
+     * @param groupBy 
+     * @param orderBy 
+     * @param limit 
+     * 
+     * @returns Promise<Array<any>>
+     */
     query(table: string, columns?: string[], selection?: string, selectionArgs?: any[], groupBy?: string, orderBy?: string, limit?: string): Promise<Array<any>> {
-        const me = this;
         selection = selection && "WHERE " + selection.replace(/\?/g, <any>__replaceQuestionMarkForParams(selectionArgs)) || "";
         groupBy = groupBy && "GROUP BY " + groupBy || ""; 
         orderBy = orderBy && "ORDER BY " + orderBy || "";
         limit = limit && "LIMIT " + limit || "";
-        const _columns = columns && columns.join(',') || '*';
+        const _columns = columns && columns.join(',') || `${table}.*`;
         let query = `SELECT ${_columns} FROM ${table} ${selection} ${groupBy} ${orderBy} ${limit}`;
         return new Promise(function(resolve, error) {
             try {
-                let cursor =  __execQueryAndReturnStatement(query, me._db);
+                let cursor =  __execQueryAndReturnStatement(query, _db);
                 const __processCursor = __prepareToProcessCursor(cursor);
-                const result = __processCursor(me._dataReturnedType);
+                const result = __processCursor(_dataReturnedType);
                 resolve(result);
             } catch(ex) {
-                error(ex)
+                error(`ErrCode:${ex}`);
             }
         });
     }
-
+    /**
+     * Execute a SQL script and do not return anything
+     * @param sql 
+     */
     execSQL(sql: string) {
         let cursorRef: interop.Reference<any>;
-        try {
-            cursorRef = __execQueryAndReturnStatement(sql, this._db);
-            sqlite3_finalize(cursorRef);
-        } catch(ex) {
-            throw `Error while executing script #${ex.message}`;
-        }
+        cursorRef = __execQueryAndReturnStatement(sql, _db);
+        sqlite3_finalize(cursorRef.value);
     }
 
+    /**
+     * Open a transaction
+     */
     beginTransact() {
         this.execSQL("BEGIN TRANSACTION");
     }
 
+    /**
+     * Commit the transaction
+     */
     commit() {
         this.execSQL("COMMIT TRANSACTION");
     }
 
+    /**
+     * Rollback a transaction
+     */
     rollback() {
         this.execSQL("ROLLBACK TRANSACTION");
     }
 
+    /**
+     * Close the database connection
+     */
     close(): void {
-        sqlite3_close(this._db);
-        this._db = null;
+        if (_db === null) { //already closed
+            return; 
+        }
+
+        sqlite3_close(_db.value);
+        _db = null;
     }
 }
 
-function __execQueryAndReturnStatement(sql: string, dbPointer: interop.Reference<any>): interop.Reference<any> {
+/** private function
+ * Execute a sql script and return the sqlite3 statament object
+ * @param sql 
+ * @param dbPointer 
+ * 
+ * @returns sqlite3 statament object stepped
+ * 
+ * @throws
+ * if sqlite3_prepare_v2 returns !== 0
+ * if sqlite3_step !== 101
+ */
+function __execQueryAndReturnStatement(sql: string, dbPointer: interop.Reference<any>): any {
     let cursorRef = new interop.Reference<any>();
-    let resultCode = sqlite3_prepare_v2(dbPointer, sql, -1, cursorRef, null);
-    if (resultCode !== 0 /*SQLITE_OK*/) {
+    let resultCode = sqlite3_prepare_v2(dbPointer.value, sql, -1, cursorRef, null);
+    let applyStatamentCode  = sqlite3_step(cursorRef.value);
+    if (resultCode !== 0 /*SQLITE_OK*/ || (applyStatamentCode !== 101/*SQLITE_DONE*/ && applyStatamentCode !== 100/*SQLITE_ROW*/)) {
         sqlite3_finalize(cursorRef.value);
         cursorRef.value = null
         cursorRef = null;
 
-        throw resultCode;
+        throw NSString.stringWithUTF8String(sqlite3_errmsg(dbPointer.value)).toString();
     }
     return cursorRef.value;
 }
 
+/** private function
+ * Return a function to replace the question mark in the 
+ * query ith the values
+ * 
+ * @param whereParams 
+ * @returns ()=>string|number
+ */
 function __replaceQuestionMarkForParams(whereParams: Array<any>): Function {
     let counter = 0;
     return ()=> {
@@ -117,22 +224,31 @@ function __replaceQuestionMarkForParams(whereParams: Array<any>): Function {
     };
 }
 
-
+/** private function
+ * Curring funcion to loop android.database.Cursor
+ * @param cursor android.database.Cursor
+ * 
+ * @returns (returnType: ReturnType) => Array<any>;
+ */
 function __prepareToProcessCursor(cursorRef: any): (returnType: ReturnType)=>Array<any> {
     return (returnType: ReturnType) => {
         const result = [];
-        while (sqlite3_step(cursorRef) !== 101/*SQLITE_DONE*/) {
+        do {
             result.push( __getRowValues(cursorRef, returnType) );
-        }
+        } while (sqlite3_step(cursorRef) !== 101/*SQLITE_DONE*/);
+            
         sqlite3_finalize(cursorRef);
         return result;
     }
 }
 
-/**
- * Process the sqlite cursor and return a js object with column/value
+/** private function
+ * Process the sqlite cursor and return a 
+ * js object with column/value or an array row
+ * 
  * @param cursor 
- * @returns JS object like {[column:string]: any}
+ * @param returnType 
+ * @returns JS  array or object like {[column:string]: any}
  */
 function __getRowValues(cursor: any, returnType: ReturnType): any {
 
@@ -144,26 +260,29 @@ function __getRowValues(cursor: any, returnType: ReturnType): any {
     let primitiveType = null;
     let columnName = '';
     let value = null;
-    let columnCount:number = sqlite3_column_count(cursor);
-
+    let columnCount: number = sqlite3_column_count(cursor);
     for (let i = 0; i < columnCount; i++) {
         primitiveType = sqlite3_column_type(cursor, i);
         columnName = sqlite3_column_name(cursor, i);
+        columnName = NSString.stringWithUTF8String(columnName).toString();
         switch (primitiveType) {
-            case android.database.Cursor.FIELD_TYPE_INTEGER: 
+            case 1/*FIELD_TYPE_INTEGER*/: 
                 value = sqlite3_column_int64(cursor, i);
                 break;
-            case android.database.Cursor.FIELD_TYPE_FLOAT: 
+            case 2/*FIELD_TYPE_FLOAT*/: 
                 value = sqlite3_column_double(cursor, i);
                 break;
-            case android.database.Cursor.FIELD_TYPE_NULL:
+            case 3/*FIELD_TYPE_STRING*/: 
+                value = sqlite3_column_text(cursor, i);
+                value = NSString.stringWithUTF8String(value).toString();    
+                break;
+            case 4/*FIELD_TYPE_BLOB*/:
+                //uncomment the code below if you wanna use it and change continue for break
+                /*NSData.dataWithBytesLength(sqlite3_column_blob(cursor, i), sqlite3_column_bytes(cursor, i)/*length* /);
+                value = sqlite3_column_blob(cursor, i);*/
+                continue;
+            case 5/*FIELD_TYPE_NULL*/:
                 value = null;
-                break;
-            case android.database.Cursor.FIELD_TYPE_BLOB:
-                value = sqlite3_column_blob(cursor, i);
-                break;
-            case android.database.Cursor.FIELD_TYPE_STRING: 
-                value = sqlite3_column_text(cursor, i);    
                 break;
         }
         // If result wanted as array of array
@@ -177,25 +296,43 @@ function __getRowValues(cursor: any, returnType: ReturnType): any {
     return rowValue;
 }
 
-
+/** private function
+ * open or create a readwrite database, permanently or in memory
+ * @param dbName database name
+ * @param mode openness mode
+ * 
+ * @returns interop.Reference<any> sqlite3*
+ * 
+ * @throws
+ * if sqlite3_open_v2 returned code !== 0
+ */
 function __openCreateDataBase(dbName: string, mode: number) {
     const dbInstance = new interop.Reference<any>();
     let resultCode: number = 0;
     if (dbName === ":memory:") {
-        resultCode = sqlite3_open_v2(dbName, dbInstance, mode | 0x00000080 /*SQLITE_OPEN_MEMORY*/, null);
+        resultCode = sqlite3_open_v2(dbName, dbInstance, mode | 296 /*SQLITE_OPEN_MEMORY*/, null);
     } else {
-        mode =  mode | 0x00000004 /*SQLITE_OPEN_CREATE*/;
+        dbName = `${fs.knownFolders.documents().path}/${dbName}`;
+        mode =  mode | 4 /*SQLITE_OPEN_CREATE*/;
+        
         resultCode = sqlite3_open_v2(dbName, dbInstance, mode, null);
     }
-
+    
     if (resultCode !== 0 /*SQLITE_OK*/) {
         throw `Could not open database. sqlite error code ${resultCode}`;
     }
     
-    return dbInstance.value;
+    return dbInstance;
 }
 
-function __mapToContentValues(values: { [key: string]: any; }, inserting: boolean = true) {
+/** private function
+ * Map a key/value JS object to Array<string>
+ * @param values { [key: string]: any; }
+ * @param inserting boolean
+ * 
+ * @returns string
+ */
+function __mapToAddOrUpdateValues(values: { [key: string]: any; }, inserting: boolean = true) {
     let contentValues = [];
     for (const key in values) {
         if (values.hasOwnProperty(key)) {
@@ -207,27 +344,36 @@ function __mapToContentValues(values: { [key: string]: any; }, inserting: boolea
     return contentValues.join(",");
 }
 
+/**
+ * Create an instance of qlite3*, execute the dropping and creating tables scripts if exists
+ * and if the version number is greater the database version
+ * @param dbName String
+ * @param options DbCreationOptions
+ * @returns SqliteAccess
+ * 
+ * @throws
+ * if database version < the user version
+ * if no database name
+ * if dropping table scripts error
+ * if creating table scripts error
+ */
 export function DbBuilder(dbName: string, options?: DbCreationOptions) : SqliteAccess {
     if (!dbName) throw "Must specify a db name";
-
-    console.dir(options);
-    options = options || {
+    options = options || ({
         version: 1
-    };
+    });
     // Ensure version be 1 or greater and returnType AS_OBJECT
     options.version = options.version || 1;
     options.returnType = options.returnType || ReturnType.AS_OBJECT;
 
-    const db = __openCreateDataBase(dbName, 0x00000002/*SQLITE_OPEN_READWRITE*/);
-    const curVersion = __dbVersion(db);
-    console.log(`db v: ${curVersion}, ${options.version}`);
-    if (options.version > curVersion) {
+    const db = __openCreateDataBase(dbName, 2/*SQLITE_OPEN_READWRITE*/);
+    const currVersion = __dbVersion(db);
+    if (options.version > currVersion) {
         __dbVersion(db, options.version);
         const tableCreateScripts = options.createTableScriptsFn && options.createTableScriptsFn();
         const tableDroptScripts = options.dropTableScriptsFn && options.dropTableScriptsFn();
         
         try {
-            console.log("script", tableCreateScripts);
             // Dropping all tables
             if (tableDroptScripts) {
                 for (let script in tableDroptScripts) {
@@ -235,7 +381,7 @@ export function DbBuilder(dbName: string, options?: DbCreationOptions) : SqliteA
                     sqlite3_finalize(cursorRef);
                 }
             }
-            console.log("drop", tableDroptScripts);
+
             // Creating all tables
             if (tableCreateScripts) {
                 for (let script in tableCreateScripts) {
@@ -248,25 +394,47 @@ export function DbBuilder(dbName: string, options?: DbCreationOptions) : SqliteA
             throw error;
         }
 
-    } else if (options.version < curVersion) {
-        db.close();
-        throw `It is not possible to set the version ${options.version} to database, because is lower then current version, Db current version is ${curVersion}`;
+    } else if (options.version < currVersion) {
+        sqlite3_close(db);
+        throw `It is not possible to set the version ${options.version} to database, because is lower then current version, Db current version is ${currVersion}`;
     }
     return new SqliteAccess(db, options.returnType);
 }
 
+/** private function
+ * get or set the database user_version
+ * @param db sqlite3*
+ * @param version 
+ * 
+ * @returns number|undefine
+ */
 function __dbVersion(db:any, version?: number) {
     let sql = "PRAGMA user_version";
     
-    if (!!version) {
-        const cursorRef = __execQueryAndReturnStatement(sql, db);
-        const __processCursor = __prepareToProcessCursor(cursorRef);
-        version = __processCursor(ReturnType.AS_ARRAY).pop();
-        sqlite3_finalize(cursorRef);
+    if (isNaN(version)) {
+        version = __execQueryReturnOneArrayRow(db, sql).pop();
     } else {
-        sql += `=${version}`;
-        const cursorRef = __execQueryAndReturnStatement(sql, db);
+        const cursorRef = __execQueryAndReturnStatement(`${sql}=${version}`, db);
         sqlite3_finalize(cursorRef);
     }
     return version;
 }
+
+/** private function
+ * execute a sql query and return the fisrt row
+ * @param db sqlite3*
+ * @param query 
+ * 
+ * @return Array<any>
+ */
+function __execQueryReturnOneArrayRow(db: any, query: string): any {
+    const cursorRef = __execQueryAndReturnStatement(query, db);
+    const __processCursor = __prepareToProcessCursor(cursorRef);
+    let result = __processCursor(ReturnType.AS_ARRAY);
+    return result.shift();
+}
+
+/**
+ * Export ReturnType and DbCreationOptions
+ */
+export * from "./common/Common";

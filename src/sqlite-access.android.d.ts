@@ -1,9 +1,7 @@
 import { IDatabase } from './common/IDatabase';
-import { DbCreationOptions } from './common/Common';
+import { DbCreationOptions, ReturnType } from './common/Common';
 declare class SqliteAccess implements IDatabase {
-    private _db;
-    private _options;
-    constructor(db: android.database.sqlite.SQLiteDatabase, options: DbCreationOptions);
+    constructor(db: android.database.sqlite.SQLiteDatabase, returnType: ReturnType);
     insert(table: string, values: {
         [key: string]: any;
     }): number;
@@ -13,7 +11,7 @@ declare class SqliteAccess implements IDatabase {
     update(table: string, values: {
         [key: string]: any;
     }, whereClause: string, whereArs: any[]): number;
-    delete(table: string, whereClause: string, whereArs: any[]): number;
+    delete(table: string, whereClause?: string, whereArgs?: any[]): number;
     select(sql: string, params?: any[]): Promise<Array<any>>;
     query(table: string, columns?: string[], selection?: string, selectionArgs?: any[], groupBy?: string, orderBy?: string, limit?: string): Promise<Array<any>>;
     execSQL(sql: string): void;
@@ -23,4 +21,4 @@ declare class SqliteAccess implements IDatabase {
     close(): void;
 }
 export declare function DbBuilder(dbName: string, options?: DbCreationOptions): SqliteAccess;
-export {};
+export * from "./common/Common";
