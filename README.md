@@ -29,7 +29,7 @@ export class HomeViewModel {
 }
 ```
 
-The function DbBuilder receive to parameters the name of the database file name and an optional [**DbCreationOptions**]("common/DbCreationOptions.ts") object. If you do not pass the last parameter, a default one will be created, but you cannot set the db version.
+The function DbBuilder receive to parameters the name of the database file name and an optional [**DbCreationOptions**](common/DbCreationOptions.ts) object. If you do not pass the last parameter, a default one will be created, but you cannot set the db version.
 
 See the full example below on typescript
 
