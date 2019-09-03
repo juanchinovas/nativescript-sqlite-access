@@ -17,7 +17,7 @@
         <ListView items="{{ items }}" class="list-group" row='2' itemTap="{{ remove }}">
             <ListView.itemTemplate>
                 <StackLayout class="list-group-item">
-                    <Label text="{{ $value._id + '-'+ $value.textu }}" class="list-group-item-text" />
+                    <Label text="{{ $value._id + '-'+ $value.name }}" class="list-group-item-text" />
                 </StackLayout>
             </ListView.itemTemplate>
         </ListView>
