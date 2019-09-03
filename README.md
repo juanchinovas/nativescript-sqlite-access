@@ -13,7 +13,7 @@ The command above automatically installs the necessary files, as well as stores 
 
 ## Usage 
 
-You need to import de function DbBuilder to create a instance of SqliteAccess class and can access to the API to manage your app's data.
+You need to import de function DbBuilder to create a instance of SqliteAccess class and access to the API of the plugin to manage your app's data.
 	
 ```typescript
 import { DbBuilder } from 'nativescript-sqlite-access';
@@ -29,9 +29,9 @@ export class HomeViewModel {
 }
 ```
 
-The function DbBuilder receive to parameters the name of the database file name and an optional [**DbCreationOptions**](src/common/Common.ts#DbCreationOptions) object. If you do not pass the last parameter, a default one will be created, but you cannot set the db version.
+The function DbBuilder receive two parameters the database file name and an optional [**DbCreationOptions**](src/common/Common.ts#DbCreationOptions) object. If you do not pass the last parameter, a default one will be created, but you cannot set the db version.
 
-See the full example below on typescript
+See the full example below in typescript
 
 ```typescript
 import {DbBuilder, IDatabase, DbCreationOptions, ReturnType} from 'nativescript-sqlite-access';
@@ -55,12 +55,13 @@ export class HomeViewModel {
 }
 ```
 
-**createTableScriptsFn** and **dropTableScriptsFn** will be executed when database is created and database version is changed to a higher value. 
+**createTableScriptsFn** and **dropTableScriptsFn** will be executed when database is created or database version is changed to a higher value. Those functions must return an array of string with all the scripts to create or delete the tables used in your app. In case you change a table structure you must change the database version to apply the changes.
 
 ## API
 
+Below all the functions available in the SqliteAccess object.
     
-|API description|
+|API|
 |---|
 ```typescript
 insert(tableName:string, values:{[column:string]: any}):number;
