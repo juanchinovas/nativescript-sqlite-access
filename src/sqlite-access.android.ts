@@ -2,7 +2,7 @@ import { IDatabase } from './common/IDatabase';
 import * as app from "tns-core-modules/application";
 import { DbCreationOptions, ReturnType } from './common/Common';
 
-//Super private variable
+//Super private variables
 let _db: android.database.sqlite.SQLiteDatabase;
 let _dataReturnedType: ReturnType;
 
@@ -13,7 +13,7 @@ let _dataReturnedType: ReturnType;
 class SqliteAccess implements IDatabase {
 
     /**
-     * Default constuctor
+     * Default constructor
      * @param db android.database.sqlite.SQLiteDatabase
      * @param returnType ReturnType
      */
@@ -38,7 +38,7 @@ class SqliteAccess implements IDatabase {
     
     /**
      * Replace a row in the table with the values and 
-     * return the number of rows affeted
+     * return the number of rows affected
      * 
      * @param table 
      * @param values
@@ -51,7 +51,7 @@ class SqliteAccess implements IDatabase {
 
     /**
      * Update a row in the table with the values and the filters. 
-     * return the number of rows affeted
+     * return the number of rows affected
      * 
      * @param table 
      * @param values
@@ -66,7 +66,7 @@ class SqliteAccess implements IDatabase {
 
     /**
      * Delete a row from the table with the filter.
-     * return the number of rows affeted
+     * return the number of rows affected
      * 
      * @param table 
      * @param whereClause? 
@@ -168,7 +168,7 @@ class SqliteAccess implements IDatabase {
 }
 
 /** private function
- * Curring funcion to loop android.database.Cursor
+ * Curring function to loop android.database.Cursor
  * @param cursor android.database.Cursor
  * 
  * @returns (returnType: ReturnType) => Array<any>;
@@ -238,7 +238,7 @@ function __getRowValues(cursor: android.database.Cursor, returnType: ReturnType)
 }
 
 /** private function
- * open or create a readwrite database, permanently or in memory
+ * open or create a read-write database, permanently or in memory
  * @param dbName database name
  * @param mode openness mode
  * @returns android.database.sqlite.SQLiteDatabase
