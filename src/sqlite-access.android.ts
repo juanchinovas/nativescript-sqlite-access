@@ -7,13 +7,13 @@ let _db: android.database.sqlite.SQLiteDatabase;
 let _dataReturnedType: ReturnType;
 
 /**
- * This class allow you to connect to sqlite database on Android|iOS
+ * This class allow you to connect to sqlite database on Android
  */
 
 class SqliteAccess implements IDatabase {
 
     /**
-     * Default constuctor
+     * Default constructor
      * @param db android.database.sqlite.SQLiteDatabase
      * @param returnType ReturnType
      */
@@ -27,8 +27,8 @@ class SqliteAccess implements IDatabase {
      * Insert a row into table with the values and return the last
      * inserted id in the table
      * 
-     * @param table 
-     * @param values 
+     * @param table string
+     * @param values { [key: string]: any; }
      * 
      * @returns number
      */
@@ -38,10 +38,10 @@ class SqliteAccess implements IDatabase {
     
     /**
      * Replace a row in the table with the values and 
-     * return the number of rows affeted
+     * return the number of rows affected
      * 
-     * @param table 
-     * @param values
+     * @param table string
+     * @param values { [key: string]: any; }
      * 
      * @returns number 
      */
@@ -51,12 +51,12 @@ class SqliteAccess implements IDatabase {
 
     /**
      * Update a row in the table with the values and the filters. 
-     * return the number of rows affeted
+     * return the number of rows affected
      * 
-     * @param table 
-     * @param values
-     * @param whereClause 
-     * @param whereArs 
+     * @param table string
+     * @param values { [key: string]: any; }
+     * @param whereClause string
+     * @param whereArs Array<string>
      * 
      * @returns number 
      */
@@ -66,11 +66,11 @@ class SqliteAccess implements IDatabase {
 
     /**
      * Delete a row from the table with the filter.
-     * return the number of rows affeted
+     * return the number of rows affected
      * 
-     * @param table 
-     * @param whereClause? 
-     * @param whereArgs?
+     * @param table string
+     * @param whereClause? string 
+     * @param whereArgs? Array<any>
      * 
      * @returns number
      */
@@ -80,8 +80,8 @@ class SqliteAccess implements IDatabase {
 
     /**
      * Execute a query selector
-     * @param sql 
-     * @param params 
+     * @param sql string
+     * @param params Array<any>
      * 
      * @returns Promise<Array<any>>
      */
@@ -101,13 +101,13 @@ class SqliteAccess implements IDatabase {
     /**
      * Execute a query selector
      * 
-     * @param table 
-     * @param columns 
-     * @param selection 
-     * @param selectionArgs 
-     * @param groupBy 
-     * @param orderBy 
-     * @param limit 
+     * @param table string
+     * @param columns Array<string>
+     * @param selection string
+     * @param selectionArgs Array<any>
+     * @param groupBy string
+     * @param orderBy string
+     * @param limit string
      * 
      * @returns Promise<Array<any>>
      */
@@ -168,7 +168,7 @@ class SqliteAccess implements IDatabase {
 }
 
 /** private function
- * Curring funcion to loop android.database.Cursor
+ * Curring function to loop android.database.Cursor
  * @param cursor android.database.Cursor
  * 
  * @returns (returnType: ReturnType) => Array<any>;
@@ -190,9 +190,9 @@ function __prepareToProcessCursor(cursor: android.database.Cursor): (returnType:
  * Process the sqlite cursor and return a 
  * js object with column/value or an array row
  * 
- * @param cursor 
- * @param returnType 
- * @returns JS  array or object like {[column:string]: any}
+ * @param cursor android.database.Cursor
+ * @param returnType ReturnType
+ * @returns JS array of object like {[column:string]: any} or Array<any>.
  */
 function __getRowValues(cursor: android.database.Cursor, returnType: ReturnType): any {
 
@@ -238,9 +238,9 @@ function __getRowValues(cursor: android.database.Cursor, returnType: ReturnType)
 }
 
 /** private function
- * open or create a readwrite database, permanently or in memory
- * @param dbName database name
- * @param mode openness mode
+ * open or create a read-write database, permanently or in memory
+ * @param dbName string database name
+ * @param mode number openness mode
  * @returns android.database.sqlite.SQLiteDatabase
  */
 function __openCreateDataBase(dbName: string, mode: number): android.database.sqlite.SQLiteDatabase {
@@ -262,7 +262,7 @@ function __openCreateDataBase(dbName: string, mode: number): android.database.sq
 
 /** private function
  * Turn an Array of any to Array of string to match android API
- * @param params sql queries params
+ * @param params Array<any> sql queries params
  * @returns Array<string>
  */
 function __objectArrayToStringArray(params: Array<any>) {

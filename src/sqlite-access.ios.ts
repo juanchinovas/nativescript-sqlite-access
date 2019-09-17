@@ -2,18 +2,18 @@ import { IDatabase } from './common/IDatabase';
 import * as fs from "tns-core-modules/file-system"
 import { DbCreationOptions, ReturnType } from './common/Common';
 
-//Super private variable
+//Super private variables
 let _db: interop.Reference<any>;
 let _dataReturnedType: ReturnType;
 
 /**
- * This class allow you to connect to sqlite database on Android|iOS
+ * This class allow you to connect to sqlite database on iOS
  */
 
 class SqliteAccess implements IDatabase {
 
     /**
-     * Default constuctor
+     * Default constructor
      * @param db interop.Reference<any>
      * @param returnType ReturnType
      */
@@ -27,8 +27,8 @@ class SqliteAccess implements IDatabase {
      * Insert a row into table with the values and return the last
      * inserted id in the table
      * 
-     * @param table 
-     * @param values 
+     * @param table     string
+     * @param values    { [key: string]: any; }
      * 
      * @returns number
      */
@@ -40,10 +40,10 @@ class SqliteAccess implements IDatabase {
     
     /**
      * Replace a row in the table with the values and 
-     * return the number of rows affeted
+     * return the number of rows affected
      * 
-     * @param table 
-     * @param values
+     * @param table string
+     * @param values { [key: string]: any; }
      * 
      * @returns number 
      */
@@ -55,12 +55,12 @@ class SqliteAccess implements IDatabase {
 
     /**
      * Update a row in the table with the values and the filters. 
-     * return the number of rows affeted
+     * return the number of rows affected
      * 
-     * @param table 
-     * @param values
-     * @param whereClause 
-     * @param whereArs 
+     * @param table string
+     * @param values { [key: string]: any; }
+     * @param whereClause string
+     * @param whereArs Array<any>
      * 
      * @returns number 
      */
@@ -73,11 +73,11 @@ class SqliteAccess implements IDatabase {
 
     /**
      * Delete a row from the table with the filter.
-     * return the number of rows affeted
+     * return the number of rows affected
      * 
-     * @param table 
-     * @param whereClause? 
-     * @param whereArgs?
+     * @param table string
+     * @param whereClause? string 
+     * @param whereArgs? Array<any>
      * 
      * @returns number
      */
@@ -90,8 +90,8 @@ class SqliteAccess implements IDatabase {
 
     /**
      * Execute a query selector
-     * @param sql 
-     * @param params 
+     * @param sql string
+     * @param params Array<any>
      * 
      * @returns Promise<Array<any>>
      */
@@ -112,13 +112,13 @@ class SqliteAccess implements IDatabase {
     /**
      * Execute a query selector
      * 
-     * @param table 
-     * @param columns 
-     * @param selection 
-     * @param selectionArgs 
-     * @param groupBy 
-     * @param orderBy 
-     * @param limit 
+     * @param table string
+     * @param columns Array<string>
+     * @param selection string
+     * @param selectionArgs Array<string>
+     * @param groupBy string
+     * @param orderBy string
+     * @param limit string
      * 
      * @returns Promise<Array<any>>
      */
@@ -142,7 +142,7 @@ class SqliteAccess implements IDatabase {
     }
     /**
      * Execute a SQL script and do not return anything
-     * @param sql 
+     * @param sql string
      */
     execSQL(sql: string) {
         let cursorRef: interop.Reference<any>;
@@ -185,11 +185,11 @@ class SqliteAccess implements IDatabase {
 }
 
 /** private function
- * Execute a sql script and return the sqlite3 statament object
- * @param sql 
- * @param dbPointer 
+ * Execute a sql script and return the sqlite3 statement object
+ * @param sql string 
+ * @param dbPointer interop.Reference<any>
  * 
- * @returns sqlite3 statament object stepped
+ * @returns sqlite3 statement object stepped
  * 
  * @throws
  * if sqlite3_prepare_v2 returns !== 0
@@ -198,8 +198,8 @@ class SqliteAccess implements IDatabase {
 function __execQueryAndReturnStatement(sql: string, dbPointer: interop.Reference<any>): any {
     let cursorRef = new interop.Reference<any>();
     let resultCode = sqlite3_prepare_v2(dbPointer.value, sql, -1, cursorRef, null);
-    let applyStatamentCode  = sqlite3_step(cursorRef.value);
-    if (resultCode !== 0 /*SQLITE_OK*/ || (applyStatamentCode !== 101/*SQLITE_DONE*/ && applyStatamentCode !== 100/*SQLITE_ROW*/)) {
+    let applyStatementCode  = sqlite3_step(cursorRef.value);
+    if (resultCode !== 0 /*SQLITE_OK*/ || (applyStatementCode !== 101/*SQLITE_DONE*/ && applyStatamentCode !== 100/*SQLITE_ROW*/)) {
         sqlite3_finalize(cursorRef.value);
         cursorRef.value = null
         cursorRef = null;
@@ -213,7 +213,7 @@ function __execQueryAndReturnStatement(sql: string, dbPointer: interop.Reference
  * Return a function to replace the question mark in the 
  * query ith the values
  * 
- * @param whereParams 
+ * @param whereParams Array<any>
  * @returns ()=>string|number
  */
 function __replaceQuestionMarkForParams(whereParams: Array<any>): Function {
@@ -225,8 +225,8 @@ function __replaceQuestionMarkForParams(whereParams: Array<any>): Function {
 }
 
 /** private function
- * Curring funcion to loop android.database.Cursor
- * @param cursor android.database.Cursor
+ * Curring function to loop sqlite cursor
+ * @param cursor interop.Reference<any>
  * 
  * @returns (returnType: ReturnType) => Array<any>;
  */
@@ -246,9 +246,9 @@ function __prepareToProcessCursor(cursorRef: any): (returnType: ReturnType)=>Arr
  * Process the sqlite cursor and return a 
  * js object with column/value or an array row
  * 
- * @param cursor 
- * @param returnType 
- * @returns JS  array or object like {[column:string]: any}
+ * @param cursor interop.Reference<any>
+ * @param returnType ReturnType
+ * @returns JS array of object like {[column:string]: any} or array
  */
 function __getRowValues(cursor: any, returnType: ReturnType): any {
 
@@ -297,9 +297,9 @@ function __getRowValues(cursor: any, returnType: ReturnType): any {
 }
 
 /** private function
- * open or create a readwrite database, permanently or in memory
- * @param dbName database name
- * @param mode openness mode
+ * open or create a read-write database, permanently or in memory
+ * @param dbName string database name
+ * @param mode number openness mode
  * 
  * @returns interop.Reference<any> sqlite3*
  * 
@@ -345,7 +345,7 @@ function __mapToAddOrUpdateValues(values: { [key: string]: any; }, inserting: bo
 }
 
 /**
- * Create an instance of qlite3*, execute the dropping and creating tables scripts if exists
+ * Create an instance of sqlite3*, execute the dropping and creating tables scripts if exists
  * and if the version number is greater the database version
  * @param dbName String
  * @param options DbCreationOptions
@@ -404,9 +404,9 @@ export function DbBuilder(dbName: string, options?: DbCreationOptions) : SqliteA
 /** private function
  * get or set the database user_version
  * @param db sqlite3*
- * @param version 
+ * @param version number
  * 
- * @returns number|undefine
+ * @returns number|undefined
  */
 function __dbVersion(db:any, version?: number) {
     let sql = "PRAGMA user_version";
@@ -421,9 +421,9 @@ function __dbVersion(db:any, version?: number) {
 }
 
 /** private function
- * execute a sql query and return the fisrt row
+ * execute a sql query and return the first row
  * @param db sqlite3*
- * @param query 
+ * @param query string
  * 
  * @return Array<any>
  */
