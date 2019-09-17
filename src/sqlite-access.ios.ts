@@ -2,7 +2,7 @@ import { IDatabase } from './common/IDatabase';
 import * as fs from "tns-core-modules/file-system"
 import { DbCreationOptions, ReturnType } from './common/Common';
 
-//Super private variable
+//Super private variables
 let _db: interop.Reference<any>;
 let _dataReturnedType: ReturnType;
 
@@ -13,7 +13,7 @@ let _dataReturnedType: ReturnType;
 class SqliteAccess implements IDatabase {
 
     /**
-     * Default constuctor
+     * Default constructor
      * @param db interop.Reference<any>
      * @param returnType ReturnType
      */
@@ -40,7 +40,7 @@ class SqliteAccess implements IDatabase {
     
     /**
      * Replace a row in the table with the values and 
-     * return the number of rows affeted
+     * return the number of rows affected
      * 
      * @param table 
      * @param values
@@ -55,7 +55,7 @@ class SqliteAccess implements IDatabase {
 
     /**
      * Update a row in the table with the values and the filters. 
-     * return the number of rows affeted
+     * return the number of rows affected
      * 
      * @param table 
      * @param values
@@ -73,7 +73,7 @@ class SqliteAccess implements IDatabase {
 
     /**
      * Delete a row from the table with the filter.
-     * return the number of rows affeted
+     * return the number of rows affected
      * 
      * @param table 
      * @param whereClause? 
@@ -185,11 +185,11 @@ class SqliteAccess implements IDatabase {
 }
 
 /** private function
- * Execute a sql script and return the sqlite3 statament object
+ * Execute a sql script and return the sqlite3 statement object
  * @param sql 
  * @param dbPointer 
  * 
- * @returns sqlite3 statament object stepped
+ * @returns sqlite3 statement object stepped
  * 
  * @throws
  * if sqlite3_prepare_v2 returns !== 0
@@ -198,8 +198,8 @@ class SqliteAccess implements IDatabase {
 function __execQueryAndReturnStatement(sql: string, dbPointer: interop.Reference<any>): any {
     let cursorRef = new interop.Reference<any>();
     let resultCode = sqlite3_prepare_v2(dbPointer.value, sql, -1, cursorRef, null);
-    let applyStatamentCode  = sqlite3_step(cursorRef.value);
-    if (resultCode !== 0 /*SQLITE_OK*/ || (applyStatamentCode !== 101/*SQLITE_DONE*/ && applyStatamentCode !== 100/*SQLITE_ROW*/)) {
+    let applyStatementCode  = sqlite3_step(cursorRef.value);
+    if (resultCode !== 0 /*SQLITE_OK*/ || (applyStatementCode !== 101/*SQLITE_DONE*/ && applyStatementCode !== 100/*SQLITE_ROW*/)) {
         sqlite3_finalize(cursorRef.value);
         cursorRef.value = null
         cursorRef = null;
@@ -297,7 +297,7 @@ function __getRowValues(cursor: any, returnType: ReturnType): any {
 }
 
 /** private function
- * open or create a readwrite database, permanently or in memory
+ * open or create a read-write database, permanently or in memory
  * @param dbName database name
  * @param mode openness mode
  * 
@@ -345,7 +345,7 @@ function __mapToAddOrUpdateValues(values: { [key: string]: any; }, inserting: bo
 }
 
 /**
- * Create an instance of qlite3*, execute the dropping and creating tables scripts if exists
+ * Create an instance of sqlite3*, execute the dropping and creating tables scripts if exists
  * and if the version number is greater the database version
  * @param dbName String
  * @param options DbCreationOptions
@@ -406,7 +406,7 @@ export function DbBuilder(dbName: string, options?: DbCreationOptions) : SqliteA
  * @param db sqlite3*
  * @param version 
  * 
- * @returns number|undefine
+ * @returns number|undefined
  */
 function __dbVersion(db:any, version?: number) {
     let sql = "PRAGMA user_version";
@@ -421,7 +421,7 @@ function __dbVersion(db:any, version?: number) {
 }
 
 /** private function
- * execute a sql query and return the fisrt row
+ * execute a sql query and return the first row
  * @param db sqlite3*
  * @param query 
  * 
