@@ -37,11 +37,11 @@ See the full example below in typescript
 import {DbBuilder, IDatabase, DbCreationOptions, ReturnType} from 'nativescript-sqlite-access';
 
 export class HomeViewModel {
-    private db: IDatabase; //The SqliteAccess' parent
+    private db: IDatabase;
     constructor() {
         super();
         this.db = DbBuilder("test.db", <DbCreationOptions>{
-            version: 1,
+            version: 1, //Version of the database
             /*All tables needed*/
             createTableScriptsFn: ()=> {
                 return ['CREATE TABLE if not exists table_name(_id INTEGER PRIMARY KEY AUTOINCREMENT, column TEXT)'];
@@ -49,7 +49,8 @@ export class HomeViewModel {
             /*Drop tables scripts, needed if your will change the tables structure*/
             dropTableScriptsFn:()=> { 
                 return ['DROP TABLE IF EXISTS table_name']
-            }
+            },
+            returnType: ReturnType.AS_OBJECT /*(DEFAULT) | ReturnType_AS_ARRAY*/
         });
     }
 }
