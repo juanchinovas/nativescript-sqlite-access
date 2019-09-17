@@ -199,7 +199,7 @@ function __execQueryAndReturnStatement(sql: string, dbPointer: interop.Reference
     let cursorRef = new interop.Reference<any>();
     let resultCode = sqlite3_prepare_v2(dbPointer.value, sql, -1, cursorRef, null);
     let applyStatementCode  = sqlite3_step(cursorRef.value);
-    if (resultCode !== 0 /*SQLITE_OK*/ || (applyStatementCode !== 101/*SQLITE_DONE*/ && applyStatamentCode !== 100/*SQLITE_ROW*/)) {
+    if (resultCode !== 0 /*SQLITE_OK*/ || (applyStatementCode !== 101/*SQLITE_DONE*/ && applyStatementCode !== 100/*SQLITE_ROW*/)) {
         sqlite3_finalize(cursorRef.value);
         cursorRef.value = null
         cursorRef = null;

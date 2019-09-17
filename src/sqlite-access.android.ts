@@ -2,7 +2,7 @@ import { IDatabase } from './common/IDatabase';
 import * as app from "tns-core-modules/application";
 import { DbCreationOptions, ReturnType } from './common/Common';
 
-//Super private variable
+//Super private variables
 let _db: android.database.sqlite.SQLiteDatabase;
 let _dataReturnedType: ReturnType;
 
