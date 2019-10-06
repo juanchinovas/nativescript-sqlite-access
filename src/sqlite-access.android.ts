@@ -213,7 +213,7 @@ function __getRowValues(cursor: android.database.Cursor, returnType: ReturnType)
                 value = cursor.getLong(i);
                 break;
             case android.database.Cursor.FIELD_TYPE_FLOAT: 
-                value = cursor.getFloat(i);
+                value = Number(cursor.getString(i));
                 break;
             case android.database.Cursor.FIELD_TYPE_STRING: 
                 value = cursor.getString(i);    
@@ -282,10 +282,11 @@ function __objectArrayToStringArray(params: Array<any>) {
  */
 function __mapToContentValues(values: { [key: string]: any; }) {
     let contentValues = new android.content.ContentValues();
+    let value = null;
     for (const key in values) {
-        if (values.hasOwnProperty(key) 
-            && values[key] !== null && values[key] !== undefined) {
-            contentValues.put(key, values[key]);
+        value = values[key];
+        if (values.hasOwnProperty(key) && value !== null && value !== undefined) {
+            contentValues.put(key, `${(''+value).replace("'", "''")}`);
         } else {
             contentValues.putNull(key);
         }

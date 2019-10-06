@@ -220,7 +220,7 @@ function __replaceQuestionMarkForParams(whereParams: Array<any>): Function {
     let counter = 0;
     return ()=> {
         let arg = whereParams[counter++];
-        return !!parseFloat(arg)? Number(arg): `'${arg}'`;
+        return !!parseFloat(arg)? Number(arg): `'${arg.replace("'", "''")}'`;
     };
 }
 
@@ -337,7 +337,7 @@ function __mapToAddOrUpdateValues(values: { [key: string]: any; }, inserting: bo
     for (const key in values) {
         if (values.hasOwnProperty(key)) {
             let value =  values[key];
-            value = !!parseFloat(value)? Number(value): `'${value}'`
+            value = !!parseFloat(value)? Number(value): `'${value.replace("'", "''")}'`
             contentValues.push(inserting && value || `${key}=${value}`);
         }
     }
@@ -390,6 +390,7 @@ export function DbBuilder(dbName: string, options?: DbCreationOptions) : SqliteA
                 }
             }
         } catch (error) {
+            __dbVersion(db, currVersion);
             sqlite3_close(db);
             throw error;
         }
