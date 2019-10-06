@@ -23,7 +23,6 @@
     "karma-nativescript-launcher": "0.4.0",
     "karma-webpack": "3.0.5",
     "mocha": "6.1.4",
-    "nativescript-dev-typescript": "~0.9.0",
     "nativescript-dev-webpack": "1.0.1",
     "nativescript-unit-test-runner": "^0.7.1-next-2019-07-19-122824-01",
     "typescript": "3.4.5"

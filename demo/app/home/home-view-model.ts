@@ -8,7 +8,7 @@ export class HomeViewModel extends Observable {
         this.db = DbBuilder("people.db", <DbCreationOptions>{
             version: 1,
             createTableScriptsFn: ()=> {
-                return ['CREATE TABLE if not exists people(_id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)'];
+                return ['CREATE TABLE if not exists people(_id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, n real, i integer)'];
             },
             dropTableScriptsFn:()=> { 
                 return ['DROP TABLE IF EXISTS people']
@@ -24,7 +24,9 @@ export class HomeViewModel extends Observable {
 
     addText() {
         let id = this.db.insert("people", {
-            name: this.get('text')
+            name: this.get('text'),
+            n: 45.23,
+            i: 5
         });
         this.set('text', '');
         this.reload();
