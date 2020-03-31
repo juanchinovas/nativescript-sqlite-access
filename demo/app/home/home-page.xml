@@ -9,8 +9,8 @@
 
     <GridLayout rows="auto, auto, *" class="form p-y-2">
         <!-- Add your page content here -->
-       <GridLayout row="0" columns="*, auto" rows="*" class="p-8">
-            <TextField col="0" class="input input-rounded" hint="{{ hint }}"  text="{{ text }}"></TextField>
+       <GridLayout row="0" columns="*, auto" rows="*" class="p-8" backgroundColor="#eee">
+            <TextField col="0" class="input input-rounded" hint="{{ hint }}"  text="{{ text }}" backgroundColor="#fff"></TextField>
             <Button col="1" text="Add" tap="{{ addText }}" class="btn btn-primary"></Button>
        </GridLayout>
 

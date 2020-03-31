@@ -9,7 +9,7 @@ describe("#delete()", function() {
 
     it("delete company", function(done) {
         database.delete(databaseTables.WORK_COMPANIES, "_id=?", [1]);
-        
+
         database.query(databaseTables.WORK_COMPANIES, ["name"], "_id=?", [1])
         .then(function(results) {
             done(results.length === 0);

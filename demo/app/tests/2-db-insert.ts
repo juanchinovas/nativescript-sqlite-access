@@ -57,15 +57,14 @@ describe("#insert()", function() {
         database.rollback();
 
         database.select(`SELECT COUNT(*) account FROM ${databaseTables.PERSONS}`)
-        .then(function(results){
+        .then(function(results) {
             let result = results.pop();
             done(result.count === 3);
         })
-        .catch(done)
+        .catch(done);
     });
 
     after(function() {
         database.close();
     });
-
 });

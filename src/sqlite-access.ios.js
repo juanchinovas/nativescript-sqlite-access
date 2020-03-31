@@ -103,18 +103,25 @@ function __replaceQuestionMarkForParams(whereParams) {
     var counter = 0;
     return function () {
         var arg = whereParams[counter++];
-        return !!parseFloat(arg) ? Number(arg) : "'" + arg.replace("'", "''") + "'";
+        return Number(arg) || (arg && "'" + arg.replace("'", "''") + "'" || null);
     };
 }
 function __processCursor(cursorRef, returnType, reduceFn) {
     var result = reduceFn && {} || [];
-    do {
-        if (reduceFn) {
-            result = reduceFn(result, __getRowValues(cursorRef, returnType));
-            continue;
-        }
-        result.push(__getRowValues(cursorRef, returnType));
-    } while (sqlite3_step(cursorRef) !== 101);
+    var stepCode = 0, isNoDone = true, value = null, hasData = sqlite3_data_count(cursorRef) > 0;
+    if (hasData) {
+        do {
+            value = __getRowValues(cursorRef, returnType);
+            stepCode = sqlite3_step(cursorRef);
+            isNoDone = stepCode !== 101 && stepCode !== 5 &&
+                stepCode !== 1 && stepCode !== 21;
+            if (reduceFn) {
+                result = reduceFn(result, value);
+                continue;
+            }
+            result.push(value);
+        } while (isNoDone);
+    }
     sqlite3_finalize(cursorRef);
     return result;
 }
@@ -178,8 +185,8 @@ function __mapToAddOrUpdateValues(values, inserting) {
     for (var key in values) {
         if (values.hasOwnProperty(key)) {
             var value = values[key];
-            value = !!parseFloat(value) ? Number(value) : "'" + value.replace("'", "''") + "'";
-            contentValues.push(inserting && value || key + "=" + value);
+            value = Number(value) || (value && "'" + value.replace("'", "''") + "'" || 'null');
+            contentValues.push(inserting ? value : key + "=" + value);
         }
     }
     return contentValues.join(",");

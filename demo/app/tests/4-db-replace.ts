@@ -12,7 +12,7 @@ describe("#replace()", function() {
             name: "Filly Lollo",
             _id: 2
         });
-        
+
         database.query(databaseTables.PERSONS, ["name"], "_id=?", [1])
         .then(function(results) {
             let result = results.pop();

@@ -11,7 +11,7 @@ describe("#update()", function() {
         database.update(databaseTables.WORK_COMPANIES, {
             name: "Facebook is for connect"
         }, "_id=?", [1]);
-        
+
         database.query(databaseTables.WORK_COMPANIES, ["name"], "_id=?", [1])
         .then(function(results) {
             let result = results.pop();

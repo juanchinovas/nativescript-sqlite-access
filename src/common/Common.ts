@@ -13,7 +13,7 @@ export const enum ReturnType {
  */
 export interface DbCreationOptions {
     version?: number;
-    createTableScriptsFn?: () => Array<string>; 
+    createTableScriptsFn?: () => Array<string>;
     dropTableScriptsFn?: () => Array<string>;
-    returnType?: ReturnType
+    returnType?: ReturnType;
 }

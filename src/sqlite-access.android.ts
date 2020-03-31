@@ -2,7 +2,7 @@ import { IDatabase } from './common/IDatabase';
 import * as app from "tns-core-modules/application";
 import { DbCreationOptions, ReturnType } from './common/Common';
 
-//Super private variables
+// Super private variables
 let _db: android.database.sqlite.SQLiteDatabase;
 let _dataReturnedType: ReturnType;
 
@@ -17,48 +17,47 @@ class SqliteAccess implements IDatabase {
      * @param db android.database.sqlite.SQLiteDatabase
      * @param returnType ReturnType
      */
-    constructor(db: android.database.sqlite.SQLiteDatabase, 
-        returnType: ReturnType) {
-            _db = db;
-            _dataReturnedType = returnType;
+    constructor(db: android.database.sqlite.SQLiteDatabase, returnType: ReturnType) {
+        _db = db;
+        _dataReturnedType = returnType;
     }
 
     /**
      * Insert a row into table with the values and return the last
      * inserted id in the table
-     * 
+     *
      * @param table string
      * @param values { [key: string]: any; }
-     * 
+     *
      * @returns number
      */
     insert(table: string, values: { [key: string]: any; }): number {
         return _db.insert(table, null, __mapToContentValues(values));
-    }    
-    
+    }
+
     /**
-     * Replace a row in the table with the values and 
+     * Replace a row in the table with the values and
      * return the number of rows affected
-     * 
+     *
      * @param table string
      * @param values { [key: string]: any; }
-     * 
-     * @returns number 
+     *
+     * @returns number
      */
     replace(table: string, values: { [key: string]: any; }): number {
         return _db.replace(table, null, __mapToContentValues(values));
     }
 
     /**
-     * Update a row in the table with the values and the filters. 
+     * Update a row in the table with the values and the filters.
      * return the number of rows affected
-     * 
+     *
      * @param table string
      * @param values { [key: string]: any; }
      * @param whereClause string
      * @param whereArs Array<string>
-     * 
-     * @returns number 
+     *
+     * @returns number
      */
     update(table: string, values: { [key: string]: any; }, whereClause: string, whereArs: any[]): number {
         return _db.update(table, __mapToContentValues(values), whereClause, __objectArrayToStringArray(whereArs));
@@ -67,11 +66,11 @@ class SqliteAccess implements IDatabase {
     /**
      * Delete a row from the table with the filter.
      * return the number of rows affected
-     * 
+     *
      * @param table string
-     * @param whereClause? string 
+     * @param whereClause? string
      * @param whereArgs? Array<any>
-     * 
+     *
      * @returns number
      */
     delete(table: string, whereClause?: string, whereArgs?: any[]): number {
@@ -82,7 +81,7 @@ class SqliteAccess implements IDatabase {
      * Execute a query selector
      * @param sql string
      * @param params Array<any>
-     * 
+     *
      * @returns Promise<Array<any>>
      */
     select(sql: string, params?: any[], reduceFn?: Function): Promise<Array<any> | any> {
@@ -91,15 +90,15 @@ class SqliteAccess implements IDatabase {
                 let cursor =  _db.rawQuery(sql, __objectArrayToStringArray(params));
                 const result = __processCursor(cursor, _dataReturnedType, reduceFn);
                 resolve(result);
-            } catch(ex) {
-                error(ex)
+            } catch (ex) {
+                error(ex);
             }
         });
     }
 
     /**
      * Execute a query selector
-     * 
+     *
      * @param table string
      * @param columns Array<string>
      * @param selection string
@@ -107,7 +106,7 @@ class SqliteAccess implements IDatabase {
      * @param groupBy string
      * @param orderBy string
      * @param limit string
-     * 
+     *
      * @returns Promise<Array<any>>
      */
     query(table: string, columns?: string[], selection?: string, selectionArgs?: any[], groupBy?: string, orderBy?: string, limit?: string): Promise<Array<any>> {
@@ -116,15 +115,15 @@ class SqliteAccess implements IDatabase {
             try {
                 const result = <Array<any>>__processCursor(cursor, _dataReturnedType);
                 resolve(result);
-            } catch(ex) {
-                error(ex)
+            } catch (ex) {
+                error(ex);
             }
         });
     }
 
     /**
      * Execute a SQL script and do not return anything
-     * @param sql 
+     * @param sql
      */
     execSQL(sql: string) {
         _db.execSQL(sql);
@@ -156,8 +155,8 @@ class SqliteAccess implements IDatabase {
      * Close the database connection
      */
     close(): void {
-        if (_db === null) { //already closed
-            return; 
+        if (_db === null) { // already closed
+            return;
         }
 
         _db.close();
@@ -169,7 +168,7 @@ class SqliteAccess implements IDatabase {
  * Curring function to loop android.database.Cursor
  * @param cursor android.database.Cursor
  * @param returnType: ReturnType
- * 
+ *
  * @returns any;
  */
 function __processCursor(cursor: android.database.Cursor, returnType: ReturnType, reduceFn?: Function) {
@@ -189,9 +188,9 @@ function __processCursor(cursor: android.database.Cursor, returnType: ReturnType
 }
 
 /** private function
- * Process the sqlite cursor and return a 
+ * Process the sqlite cursor and return a
  * js object with column/value or an array row
- * 
+ *
  * @param cursor android.database.Cursor
  * @param returnType ReturnType
  * @returns JS array of object like {[column:string]: any} or Array<any>.
@@ -206,23 +205,23 @@ function __getRowValues(cursor: android.database.Cursor, returnType: ReturnType)
     let primitiveType = null;
     let columnName = '';
     let value = null;
-    let columnCount:number = cursor.getColumnCount();
+    let columnCount: number = cursor.getColumnCount();
     for (let i = 0; i < columnCount; i++) {
         primitiveType = cursor.getType(i);
         columnName = cursor.getColumnName(i);
         switch (primitiveType) {
-            case android.database.Cursor.FIELD_TYPE_INTEGER: 
+            case android.database.Cursor.FIELD_TYPE_INTEGER:
                 value = cursor.getLong(i);
                 break;
-            case android.database.Cursor.FIELD_TYPE_FLOAT: 
+            case android.database.Cursor.FIELD_TYPE_FLOAT:
                 value = Number(cursor.getString(i));
                 break;
-            case android.database.Cursor.FIELD_TYPE_STRING: 
-                value = cursor.getString(i);    
+            case android.database.Cursor.FIELD_TYPE_STRING:
+                value = cursor.getString(i);
                 break;
             case android.database.Cursor.FIELD_TYPE_BLOB:
-                //uncomment the code below if you wanna use it and change continue for break
-                //value = cursor.getBlob(i);
+                // uncomment the code below if you wanna use it and change continue for break
+                // value = cursor.getBlob(i);
                 continue;
             case android.database.Cursor.FIELD_TYPE_NULL:
                 value = null;
@@ -249,15 +248,15 @@ function __openCreateDataBase(dbName: string, mode: number): android.database.sq
     if (dbName === ":memory:") {
         return android.database.sqlite.SQLiteDatabase.create(null);
     }
-    //Getting a native File object
+    // Getting a native File object
     const file: java.io.File = <java.io.File>__getContext().getDatabasePath(dbName);
-    //Check if database file does not exist, then create dir
-    if(!file.exists()) {
+    // Check if database file does not exist, then create dir
+    if (!file.exists()) {
         file.getParentFile().mkdirs();
         file.getParentFile().setReadable(true);
         file.getParentFile().setWritable(true);
     }
-    
+
     mode =  mode | android.database.sqlite.SQLiteDatabase.CREATE_IF_NECESSARY;
     return android.database.sqlite.SQLiteDatabase.openDatabase(file.getAbsolutePath(), null, mode);
 }
@@ -270,8 +269,8 @@ function __openCreateDataBase(dbName: string, mode: number): android.database.sq
 function __objectArrayToStringArray(params: Array<any>) {
     if (!params) return null;
 
-    let stringArray:Array<string> = [];
-    for(let key in params) {
+    let stringArray: Array<string> = [];
+    for (let key in params) {
         stringArray.push( params[key] && params[key].toString() || null );
     }
     return stringArray;
@@ -288,7 +287,7 @@ function __mapToContentValues(values: { [key: string]: any; }) {
     for (const key in values) {
         value = values[key];
         if (values.hasOwnProperty(key) && value !== null && value !== undefined) {
-            contentValues.put(key, `${(''+value).replace("'", "''")}`);
+            contentValues.put(key, `${('' + value).replace("'", "''")}`);
         } else {
             contentValues.putNull(key);
         }
@@ -300,7 +299,7 @@ function __mapToContentValues(values: { [key: string]: any; }) {
  * Get and return Android app Context
  */
 function __getContext() {
-    return (app.android.context 
+    return (app.android.context
             || (app.getNativeApplication && app.getNativeApplication()));
 }
 
@@ -310,14 +309,14 @@ function __getContext() {
  * @param dbName String
  * @param options DbCreationOptions
  * @returns SqliteAccess
- * 
+ *
  * @throws
  * if database version < the user version
  * if no database name
  * if dropping table scripts error
  * if creating table scripts error
  */
-export function DbBuilder(dbName: string, options?: DbCreationOptions) : SqliteAccess {
+export function DbBuilder(dbName: string, options?: DbCreationOptions): SqliteAccess {
     if (!dbName) throw "Must specify a db name";
 
     options = options || {
@@ -333,7 +332,7 @@ export function DbBuilder(dbName: string, options?: DbCreationOptions) : SqliteA
         db.setVersion(options.version);
         const tableCreateScripts = options.createTableScriptsFn && options.createTableScriptsFn();
         const tableDroptScripts = options.dropTableScriptsFn && options.dropTableScriptsFn();
-        
+
         try {
             // Dropping all tables
             if (tableDroptScripts) {

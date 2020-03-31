@@ -3,7 +3,7 @@ import { databaseName, creationTableQueries, dropTableQueries, databaseTables } 
 
 describe("Database creation", function() {
     let database: IDatabase;
-    describe("#DbBuilder(dbName, config)", function(){
+    describe("#DbBuilder(dbName, config)", function() {
         it("It should create a database and return an IDatabase object", function() {
             const config: DbCreationOptions = {
                 version: 1,
