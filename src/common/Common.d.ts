@@ -8,4 +8,3 @@ export interface DbCreationOptions {
     dropTableScriptsFn?: () => Array<string>;
     returnType?: ReturnType;
 }
-export declare function getTypeCode(value: string | number): number;

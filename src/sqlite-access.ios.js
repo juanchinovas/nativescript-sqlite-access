@@ -33,13 +33,12 @@ var SqliteAccess = (function () {
         var value = sqlite3_changes(_db.value);
         return Number(value);
     };
-    SqliteAccess.prototype.select = function (sql, params) {
-        sql = sql.replace(/\?/g, __replaceQuestionMarkForParams(params));
+    SqliteAccess.prototype.select = function (sql, params, reduceFn) {
         return new Promise(function (resolve, error) {
             try {
+                sql = sql.replace(/\?/g, __replaceQuestionMarkForParams(params));
                 var cursor = __execQueryAndReturnStatement(sql, _db);
-                var __processCursor = __prepareToProcessCursor(cursor);
-                var result = __processCursor(_dataReturnedType);
+                var result = __processCursor(cursor, _dataReturnedType, reduceFn);
                 resolve(result);
             }
             catch (ex) {
@@ -57,8 +56,7 @@ var SqliteAccess = (function () {
         return new Promise(function (resolve, error) {
             try {
                 var cursor = __execQueryAndReturnStatement(query, _db);
-                var __processCursor = __prepareToProcessCursor(cursor);
-                var result = __processCursor(_dataReturnedType);
+                var result = __processCursor(cursor, _dataReturnedType);
                 resolve(result);
             }
             catch (ex) {
@@ -108,15 +106,17 @@ function __replaceQuestionMarkForParams(whereParams) {
         return !!parseFloat(arg) ? Number(arg) : "'" + arg.replace("'", "''") + "'";
     };
 }
-function __prepareToProcessCursor(cursorRef) {
-    return function (returnType) {
-        var result = [];
-        do {
-            result.push(__getRowValues(cursorRef, returnType));
-        } while (sqlite3_step(cursorRef) !== 101);
-        sqlite3_finalize(cursorRef);
-        return result;
-    };
+function __processCursor(cursorRef, returnType, reduceFn) {
+    var result = reduceFn && {} || [];
+    do {
+        if (reduceFn) {
+            result = reduceFn(result, __getRowValues(cursorRef, returnType));
+            continue;
+        }
+        result.push(__getRowValues(cursorRef, returnType));
+    } while (sqlite3_step(cursorRef) !== 101);
+    sqlite3_finalize(cursorRef);
+    return result;
 }
 function __getRowValues(cursor, returnType) {
     var rowValue = {};
@@ -238,8 +238,7 @@ function __dbVersion(db, version) {
 }
 function __execQueryReturnOneArrayRow(db, query) {
     var cursorRef = __execQueryAndReturnStatement(query, db);
-    var __processCursor = __prepareToProcessCursor(cursorRef);
-    var result = __processCursor(1);
+    var result = __processCursor(cursorRef, 1);
     return result.shift();
 }
 __export(require("./common/Common"));

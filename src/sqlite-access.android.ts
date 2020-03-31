@@ -85,12 +85,11 @@ class SqliteAccess implements IDatabase {
      * 
      * @returns Promise<Array<any>>
      */
-    select(sql: string, params?: any[]): Promise<Array<any>> {
+    select(sql: string, params?: any[], reduceFn?: Function): Promise<Array<any> | any> {
         return new Promise(function(resolve, error) {
-            let cursor =  _db.rawQuery(sql, __objectArrayToStringArray(params));
             try {
-                const toArrayOfObject = __prepareToProcessCursor(cursor);
-                const result = toArrayOfObject(_dataReturnedType);
+                let cursor =  _db.rawQuery(sql, __objectArrayToStringArray(params));
+                const result = __processCursor(cursor, _dataReturnedType, reduceFn);
                 resolve(result);
             } catch(ex) {
                 error(ex)
@@ -115,8 +114,7 @@ class SqliteAccess implements IDatabase {
         return new Promise(function(resolve, error) {
             let cursor =  _db.query(table, columns, selection, __objectArrayToStringArray(selectionArgs), groupBy, orderBy, limit);
             try {
-                const toArrayOfObject = __prepareToProcessCursor(cursor);
-                const result = toArrayOfObject(_dataReturnedType);
+                const result = <Array<any>>__processCursor(cursor, _dataReturnedType);
                 resolve(result);
             } catch(ex) {
                 error(ex)
@@ -170,20 +168,24 @@ class SqliteAccess implements IDatabase {
 /** private function
  * Curring function to loop android.database.Cursor
  * @param cursor android.database.Cursor
+ * @param returnType: ReturnType
  * 
- * @returns (returnType: ReturnType) => Array<any>;
+ * @returns any;
  */
-function __prepareToProcessCursor(cursor: android.database.Cursor): (returnType: ReturnType)=>Array<any> {
-    return (returnType: ReturnType) => {
-        const result = [];
-        if (cursor.getCount() > 0) {
-            while ( cursor.moveToNext() ) {
-                result.push( __getRowValues(cursor, returnType) );
+function __processCursor(cursor: android.database.Cursor, returnType: ReturnType, reduceFn?: Function) {
+    let result: Array<any> | {} = reduceFn && {} || [];
+    if (cursor.getCount() > 0) {
+        while ( cursor.moveToNext() ) {
+            if (reduceFn) {
+                result = reduceFn(result, __getRowValues(cursor, returnType));
+                continue;
             }
+            (<Array<any>>result).push( __getRowValues(cursor, returnType) );
         }
-        cursor.close();
-        return result;
     }
+    cursor.close();
+
+    return result;
 }
 
 /** private function

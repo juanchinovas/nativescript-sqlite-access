@@ -81,14 +81,14 @@ update(table: string, values: {[key:string]: any}, whereClause: string, whereArs
 update values /*column/value*/ in the table to the matched row. Return the number of affected rows
 ```
 ```typescript
-delete(table: string, whereClause: string, whereArs: Array<any>): number;
+delete(table: string, whereClause?: string, whereArs?: Array<any>): number;
 
 Delete rows from table that match where clause.
-whereClause param must has the follow format "column1=? and column2=?"
+whereClause param must follow the format "column1=? and column2=?"
 ```
 
 ```typescript
-select(sql: string, params: Array<any>): Promise<Array<any>>;
+select(sql: string, params?: any[], reduceFn?: Function): Promise<Array<any> | any>;
 
 Query the selected the table data.
 sql param follow the next convention 

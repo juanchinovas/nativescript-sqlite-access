@@ -95,13 +95,12 @@ class SqliteAccess implements IDatabase {
      * 
      * @returns Promise<Array<any>>
      */
-    select(sql: string, params?: any[]): Promise<Array<any>> {
-        sql = sql.replace(/\?/g, <any>__replaceQuestionMarkForParams(params));
+    select(sql: string, params?: any[], reduceFn?: Function): Promise<Array<any> | any> {
         return new Promise(function(resolve, error) {
             try {
+                sql = sql.replace(/\?/g, <any>__replaceQuestionMarkForParams(params));
                 let cursor =  __execQueryAndReturnStatement(sql, _db);
-                const __processCursor = __prepareToProcessCursor(cursor);
-                const result = __processCursor(_dataReturnedType);
+                const result = __processCursor(cursor, _dataReturnedType, reduceFn);
                 resolve(result);
             } catch(ex) {
                 error(ex)
@@ -132,8 +131,7 @@ class SqliteAccess implements IDatabase {
         return new Promise(function(resolve, error) {
             try {
                 let cursor =  __execQueryAndReturnStatement(query, _db);
-                const __processCursor = __prepareToProcessCursor(cursor);
-                const result = __processCursor(_dataReturnedType);
+                const result = <Array<any>>__processCursor(cursor, _dataReturnedType);
                 resolve(result);
             } catch(ex) {
                 error(`ErrCode:${ex}`);
@@ -230,16 +228,18 @@ function __replaceQuestionMarkForParams(whereParams: Array<any>): Function {
  * 
  * @returns (returnType: ReturnType) => Array<any>;
  */
-function __prepareToProcessCursor(cursorRef: any): (returnType: ReturnType)=>Array<any> {
-    return (returnType: ReturnType) => {
-        const result = [];
-        do {
-            result.push( __getRowValues(cursorRef, returnType) );
-        } while (sqlite3_step(cursorRef) !== 101/*SQLITE_DONE*/);
-            
-        sqlite3_finalize(cursorRef);
-        return result;
-    }
+function __processCursor(cursorRef: any, returnType: ReturnType, reduceFn?: Function) {
+    let result: Array<any> | {} = reduceFn && {} || [];
+    do {
+        if (reduceFn) {
+            result = reduceFn(result,  __getRowValues(cursorRef, returnType));
+            continue;
+        }
+       (<Array<any>>result).push( __getRowValues(cursorRef, returnType) );
+    } while (sqlite3_step(cursorRef) !== 101/*SQLITE_DONE*/);
+        
+    sqlite3_finalize(cursorRef);
+    return result;
 }
 
 /** private function
@@ -430,8 +430,7 @@ function __dbVersion(db:any, version?: number) {
  */
 function __execQueryReturnOneArrayRow(db: any, query: string): any {
     const cursorRef = __execQueryAndReturnStatement(query, db);
-    const __processCursor = __prepareToProcessCursor(cursorRef);
-    let result = __processCursor(ReturnType.AS_ARRAY);
+    const result = <Array<any>>__processCursor(cursorRef, ReturnType.AS_ARRAY);
     return result.shift();
 }
 

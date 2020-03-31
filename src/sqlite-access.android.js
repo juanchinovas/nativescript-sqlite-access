@@ -4,7 +4,6 @@ function __export(m) {
 }
 Object.defineProperty(exports, "__esModule", { value: true });
 var app = require("tns-core-modules/application");
-var Common_1 = require("./common/Common");
 var _db;
 var _dataReturnedType;
 var SqliteAccess = (function () {
@@ -24,12 +23,11 @@ var SqliteAccess = (function () {
     SqliteAccess.prototype.delete = function (table, whereClause, whereArgs) {
         return _db.delete(table, whereClause, __objectArrayToStringArray(whereArgs));
     };
-    SqliteAccess.prototype.select = function (sql, params) {
+    SqliteAccess.prototype.select = function (sql, params, reduceFn) {
         return new Promise(function (resolve, error) {
-            var cursor = _db.rawQuery(sql, __objectArrayToStringArray(params));
             try {
-                var toArrayOfObject = __prepareToProcessCursor(cursor);
-                var result = toArrayOfObject(_dataReturnedType);
+                var cursor = _db.rawQuery(sql, __objectArrayToStringArray(params));
+                var result = __processCursor(cursor, _dataReturnedType, reduceFn);
                 resolve(result);
             }
             catch (ex) {
@@ -41,8 +39,7 @@ var SqliteAccess = (function () {
         return new Promise(function (resolve, error) {
             var cursor = _db.query(table, columns, selection, __objectArrayToStringArray(selectionArgs), groupBy, orderBy, limit);
             try {
-                var toArrayOfObject = __prepareToProcessCursor(cursor);
-                var result = toArrayOfObject(_dataReturnedType);
+                var result = __processCursor(cursor, _dataReturnedType);
                 resolve(result);
             }
             catch (ex) {
@@ -72,17 +69,19 @@ var SqliteAccess = (function () {
     };
     return SqliteAccess;
 }());
-function __prepareToProcessCursor(cursor) {
-    return function (returnType) {
-        var result = [];
-        if (cursor.getCount() > 0) {
-            while (cursor.moveToNext()) {
-                result.push(__getRowValues(cursor, returnType));
+function __processCursor(cursor, returnType, reduceFn) {
+    var result = reduceFn && {} || [];
+    if (cursor.getCount() > 0) {
+        while (cursor.moveToNext()) {
+            if (reduceFn) {
+                result = reduceFn(result, __getRowValues(cursor, returnType));
+                continue;
             }
+            result.push(__getRowValues(cursor, returnType));
         }
-        cursor.close();
-        return result;
-    };
+    }
+    cursor.close();
+    return result;
 }
 function __getRowValues(cursor, returnType) {
     var rowValue = {};
@@ -101,7 +100,7 @@ function __getRowValues(cursor, returnType) {
                 value = cursor.getLong(i);
                 break;
             case android.database.Cursor.FIELD_TYPE_FLOAT:
-                value = cursor.getFloat(i);
+                value = Number(cursor.getString(i));
                 break;
             case android.database.Cursor.FIELD_TYPE_STRING:
                 value = cursor.getString(i);
@@ -148,24 +147,13 @@ function __mapToContentValues(values) {
     for (var key in values) {
         value = values[key];
         if (values.hasOwnProperty(key) && value !== null && value !== undefined) {
-            console.log(__getValueOnCorrectTypePlatform(value));
-            contentValues.put(key, __getValueOnCorrectTypePlatform(value));
+            contentValues.put(key, "" + ('' + value).replace("'", "''"));
         }
         else {
             contentValues.putNull(key);
         }
     }
     return contentValues;
-}
-function __getValueOnCorrectTypePlatform(value) {
-    var code = Common_1.getTypeCode(value);
-    if (code === 2) {
-        return java.lang.Long.valueOf(value);
-    }
-    else if (code === 3) {
-        return java.lang.Float.valueOf(value);
-    }
-    return "'" + value.replace("'", "''") + "'";
 }
 function __getContext() {
     return (app.android.context

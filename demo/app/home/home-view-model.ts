@@ -46,6 +46,18 @@ export class HomeViewModel extends Observable {
             this.set('items', result);
         })
         .catch(console.error);
+
+        const reducerFn = (acc, next)=> {
+            acc["name"] = acc["name"] || [];
+            acc["name"].push(next.name);
+            return acc;
+        };
+
+        // @ts-ignore
+        this.db.select("SELECT * FROM people", null, reducerFn).then(result=> {
+            console.log(result);
+        })
+        .catch(console.error);
     }
 
 }

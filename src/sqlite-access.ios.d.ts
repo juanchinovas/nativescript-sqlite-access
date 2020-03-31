@@ -12,7 +12,7 @@ declare class SqliteAccess implements IDatabase {
         [key: string]: any;
     }, whereClause: string, whereArs: any[]): number;
     delete(table: string, whereClause?: string, whereArgs?: any[]): number;
-    select(sql: string, params?: any[]): Promise<Array<any>>;
+    select(sql: string, params?: any[], reduceFn?: Function): Promise<Array<any> | any>;
     query(table: string, columns?: string[], selection?: string, selectionArgs?: any[], groupBy?: string, orderBy?: string, limit?: string): Promise<Array<any>>;
     execSQL(sql: string): void;
     beginTransact(): void;
