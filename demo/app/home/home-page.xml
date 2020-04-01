@@ -21,7 +21,5 @@
                 </StackLayout>
             </ListView.itemTemplate>
         </ListView>
-
-
     </GridLayout>
 </Page>

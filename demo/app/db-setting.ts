@@ -1,6 +1,6 @@
 
 /**Database tables enum */
-export const databaseName = "database_test.sqlite";
+export const databaseName = "database_test.db";
 
 export const enum databaseTables {
     PERSONS = "persons",
@@ -8,8 +8,8 @@ export const enum databaseTables {
 }
 
 export const creationTableQueries = [
-    `CREATE TABLE ${databaseTables.WORK_COMPANIES} (_id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)`,
-    `CREATE TABLE ${databaseTables.PERSONS} (_id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, id_company INTEGER)`
+    `CREATE TABLE ${databaseTables.WORK_COMPANIES} (_id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, n real, i integer)`,
+    `CREATE TABLE ${databaseTables.PERSONS} (_id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, id_company INTEGER, n real, i integer)`
 ];
 
 export const dropTableQueries = [

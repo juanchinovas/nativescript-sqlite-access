@@ -1,18 +1,19 @@
 import { Observable } from "tns-core-modules/data/observable";
 import {DbBuilder, IDatabase, DbCreationOptions} from 'nativescript-sqlite-access';
+import { databaseName, creationTableQueries, dropTableQueries, databaseTables } from "../db-setting";
 
 export class HomeViewModel extends Observable {
     private db: IDatabase;
     private updateCounter = 0;
     constructor() {
         super();
-        this.db = DbBuilder("people.db", <DbCreationOptions>{
+        this.db = DbBuilder(databaseName, <DbCreationOptions>{
             version: 1,
             createTableScriptsFn: () => {
-                return ['CREATE TABLE if not exists people(_id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, n real, i integer)'];
+                return creationTableQueries;
             },
             dropTableScriptsFn: () => {
-                return ['DROP TABLE IF EXISTS people'];
+                return dropTableQueries;
             }
         });
 
@@ -24,11 +25,12 @@ export class HomeViewModel extends Observable {
 
 
     addText() {
-        let id = this.db.insert("people", {
+        let id = this.db.insert(databaseTables.PERSONS, {
             name: this.get('text'),
             n: 45.23,
             i: 1 * this.updateCounter
         });
+        console.log("id", id);
         this.set('text', '');
         this.reload();
     }
@@ -36,7 +38,7 @@ export class HomeViewModel extends Observable {
     remove(event) {
         this.db.beginTransact();
         let test = this.get("items")[event.index];
-        let deleted = this.db.delete("people", '_id=?', [test._id]);
+        let deleted = this.db.delete(databaseTables.PERSONS, '_id=?', [test._id]);
         console.log("deleted count.: ", deleted);
         this.db.commit();
         this.update();
@@ -44,14 +46,14 @@ export class HomeViewModel extends Observable {
     }
 
     update() {
-        const updated = this.db.update("people", {
+        const updated = this.db.update(databaseTables.PERSONS, {
             name: "updateName-" + (this.updateCounter++)
         }, "_id=?", [1]);
         console.log("updated:", updated);
     }
 
     reload() {
-        this.db.select("SELECT * FROM people", null).then(result => {
+        this.db.select(`SELECT * FROM ${databaseTables.PERSONS}`, null).then(result => {
             this.set('items', result);
         })
         .catch(console.error);
@@ -62,8 +64,7 @@ export class HomeViewModel extends Observable {
             return acc;
         };
 
-        // @ts-ignore
-        this.db.select("SELECT * FROM people", null, reducerFn).then(result => {
+        this.db.select(`SELECT * FROM ${databaseTables.PERSONS}`, null, reducerFn).then(result => {
             console.log(result);
         })
         .catch(console.error);
