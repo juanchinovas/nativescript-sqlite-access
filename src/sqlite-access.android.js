@@ -136,8 +136,11 @@ function __objectArrayToStringArray(params) {
     if (!params)
         return null;
     var stringArray = [];
+    var value = null;
     for (var key in params) {
-        stringArray.push(params[key] && params[key].toString() || null);
+        value = params[key] && params[key].toString() || null;
+        value = params[key] === 0 ? 0 : value;
+        stringArray.push(value);
     }
     return stringArray;
 }
@@ -174,7 +177,7 @@ function DbBuilder(dbName, options) {
         var tableCreateScripts = options.createTableScriptsFn && options.createTableScriptsFn();
         var tableDroptScripts = options.dropTableScriptsFn && options.dropTableScriptsFn();
         try {
-            if (tableDroptScripts) {
+            if (tableDroptScripts && curVersion > 0) {
                 for (var script in tableDroptScripts) {
                     db.execSQL(tableDroptScripts[script]);
                 }

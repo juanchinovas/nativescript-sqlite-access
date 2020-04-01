@@ -102,17 +102,15 @@ function __execQueryAndReturnStatement(sql, dbPointer) {
 function __replaceQuestionMarkForParams(whereParams) {
     var counter = 0;
     return function () {
-        var arg = whereParams[counter++];
-        return Number(arg) || (arg && "'" + arg.replace("'", "''") + "'" || null);
+        return __getDbValidValue(whereParams[counter++]);
     };
 }
 function __processCursor(cursorRef, returnType, reduceFn) {
     var result = reduceFn && {} || [];
-    var stepCode = 0, isNoDone = true, value = null, hasData = sqlite3_data_count(cursorRef) > 0;
+    var value = null, hasData = sqlite3_data_count(cursorRef) > 0;
     if (hasData) {
         do {
             value = __getRowValues(cursorRef, returnType);
-            ;
             if (reduceFn) {
                 result = reduceFn(result, value);
                 continue;
@@ -182,12 +180,17 @@ function __mapToAddOrUpdateValues(values, inserting) {
     var contentValues = [];
     for (var key in values) {
         if (values.hasOwnProperty(key)) {
-            var value = values[key];
-            value = Number(value) || (value && "'" + value.replace("'", "''") + "'" || 'null');
+            var value = __getDbValidValue(values[key]);
+            value = value === null ? 'null' : value;
             contentValues.push(inserting ? value : key + "=" + value);
         }
     }
     return contentValues.join(",");
+}
+function __getDbValidValue(value) {
+    if (value === 0)
+        return value;
+    return Number(value) || (value && "'" + value.toString().replace("'", "''") + "'" || null);
 }
 function DbBuilder(dbName, options) {
     if (!dbName)
@@ -204,7 +207,7 @@ function DbBuilder(dbName, options) {
         var tableCreateScripts = options.createTableScriptsFn && options.createTableScriptsFn();
         var tableDroptScripts = options.dropTableScriptsFn && options.dropTableScriptsFn();
         try {
-            if (tableDroptScripts) {
+            if (tableDroptScripts && currVersion > 0) {
                 for (var script in tableDroptScripts) {
                     var cursorRef = __execQueryAndReturnStatement(tableDroptScripts[script], db);
                     sqlite3_finalize(cursorRef);

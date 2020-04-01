@@ -270,8 +270,11 @@ function __objectArrayToStringArray(params: Array<any>) {
     if (!params) return null;
 
     let stringArray: Array<string> = [];
+    let value = null;
     for (let key in params) {
-        stringArray.push( params[key] && params[key].toString() || null );
+        value = params[key] && params[key].toString() || null;
+        value = params[key] === 0 ? 0 : value;
+        stringArray.push( value );
     }
     return stringArray;
 }
@@ -335,7 +338,7 @@ export function DbBuilder(dbName: string, options?: DbCreationOptions): SqliteAc
 
         try {
             // Dropping all tables
-            if (tableDroptScripts) {
+            if (tableDroptScripts && curVersion > 0) {
                 for (let script in tableDroptScripts) {
                     db.execSQL(tableDroptScripts[script]);
                 }

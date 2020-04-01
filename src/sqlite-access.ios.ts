@@ -390,7 +390,7 @@ export function DbBuilder(dbName: string, options?: DbCreationOptions): SqliteAc
 
         try {
             // Dropping all tables
-            if (tableDroptScripts) {
+            if (tableDroptScripts && currVersion > 0) {
                 for (let script in tableDroptScripts) {
                     const cursorRef = __execQueryAndReturnStatement(tableDroptScripts[script], db);
                     sqlite3_finalize(cursorRef);
