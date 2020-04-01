@@ -216,9 +216,7 @@ function __execQueryAndReturnStatement(sql: string, dbPointer: interop.Reference
 function __replaceQuestionMarkForParams(whereParams: Array<any>): Function {
     let counter = 0;
     return () => {
-        let arg = whereParams[counter++];
-        // Fixes issue #7
-        return Number(arg) || (arg && `'${arg.replace("'", "''")}'` || null);
+        return __getDbValidValue(whereParams[counter++]);
     };
 }
 
@@ -230,25 +228,19 @@ function __replaceQuestionMarkForParams(whereParams: Array<any>): Function {
  */
 function __processCursor(cursorRef: any, returnType: ReturnType, reduceFn?: Function) {
     let result: Array<any> | {} = reduceFn && {} || [];
-    let stepCode = 0,
-        isNoDone = true,
-        value = null,
+    let value = null,
         hasData = sqlite3_data_count(cursorRef) > 0;
 
     if (hasData) {
         do {
             value = __getRowValues(cursorRef, returnType);
-            stepCode = sqlite3_step(cursorRef);
-            // Fixes issue #8
-            isNoDone = stepCode !== 101 /*SQLITE_DONE*/ && stepCode !== 5 /*SQLITE_BUSY*/ &&
-                       stepCode !== 1 /*SQLITE_ERROR*/  && stepCode !== 21 /*SQLITE_MISUSE*/;
-
             if (reduceFn) {
                 result = reduceFn(result,  value);
                 continue;
             }
             (<Array<any>>result).push( value );
-        } while (isNoDone);
+            // Condiction on the while fixes issue #8
+        } while (sqlite3_step(cursorRef) === 100 /*SQLITE_ROW*/);
     }
 
     sqlite3_finalize(cursorRef);
@@ -338,7 +330,7 @@ function __openCreateDataBase(dbName: string, mode: number) {
     return dbInstance;
 }
 
-/** private function
+/**
  * Map a key/value JS object to Array<string>
  * @param values { [key: string]: any; }
  * @param inserting boolean
@@ -349,13 +341,22 @@ function __mapToAddOrUpdateValues(values: { [key: string]: any; }, inserting: bo
     let contentValues = [];
     for (const key in values) {
         if (values.hasOwnProperty(key)) {
-            let value =  values[key];
-            // Fixes issue #7
-            value = Number(value) || (value && `'${value.replace("'", "''")}'` || 'null');
+            let value = __getDbValidValue(values[key]);
+            value = value === null ? 'null' : value;
             contentValues.push(inserting ? value : `${key}=${value}`);
         }
     }
     return contentValues.join(",");
+}
+
+/**
+ * Trip values to insert o update
+ * @param {any} value
+ */
+function __getDbValidValue(value: any) {
+    if (value === 0) return value;
+    // Fixes issue #7
+    return Number(value) || (value && `'${value.toString().replace("'", "''")}'` || null);
 }
 
 /**

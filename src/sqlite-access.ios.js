@@ -112,15 +112,13 @@ function __processCursor(cursorRef, returnType, reduceFn) {
     if (hasData) {
         do {
             value = __getRowValues(cursorRef, returnType);
-            stepCode = sqlite3_step(cursorRef);
-            isNoDone = stepCode !== 101 && stepCode !== 5 &&
-                stepCode !== 1 && stepCode !== 21;
+            ;
             if (reduceFn) {
                 result = reduceFn(result, value);
                 continue;
             }
             result.push(value);
-        } while (isNoDone);
+        } while (sqlite3_step(cursorRef) === 100);
     }
     sqlite3_finalize(cursorRef);
     return result;

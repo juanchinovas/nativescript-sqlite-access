@@ -27,7 +27,7 @@ export class HomeViewModel extends Observable {
         let id = this.db.insert("people", {
             name: this.get('text'),
             n: 45.23,
-            i: 2 * this.updateCounter
+            i: 1 * this.updateCounter
         });
         this.set('text', '');
         this.reload();
