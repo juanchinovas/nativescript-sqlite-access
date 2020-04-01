@@ -1,0 +1,20 @@
+<ActionBar class="action-bar">
+    <Label class="action-bar-title" text="Testing"></Label>
+    
+</ActionBar>
+
+<GridLayout rows="auto, auto, *" class="form p-y-2">
+    <!-- Add your page content here -->
+   <GridLayout row="0" columns="*, auto" rows="*" class="p-8" backgroundColor="#f0f0f0">
+        <TextField col="0" class="input input-rounded" hint="{{ hint }}"  [(ngModel)]="text" backgroundColor="#fff"></TextField>
+        <Button col="1" text="Add" (tap)="addText()" class="btn btn-primary"></Button>
+   </GridLayout>
+
+    <ListView [items]="items" class="list-group" row='2' (itemTap)="remove($event)">
+        <ng-template let-item="item">
+            <Label text="{{ item._id + '-'+ item.name+ ' -  '+ item.n+ '  - '+ item.i }}" class="list-group-item"></Label>
+        </ng-template>
+    </ListView>
+
+</GridLayout>
+
