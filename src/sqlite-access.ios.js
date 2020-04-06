@@ -4,6 +4,7 @@ function __export(m) {
 }
 Object.defineProperty(exports, "__esModule", { value: true });
 var fs = require("tns-core-modules/file-system");
+var sqlite_access_common_1 = require("./sqlite-access-common");
 var _db;
 var _dataReturnedType;
 var SqliteAccess = (function () {
@@ -102,7 +103,7 @@ function __execQueryAndReturnStatement(sql, dbPointer) {
 function __replaceQuestionMarkForParams(whereParams) {
     var counter = 0;
     return function () {
-        return __getDbValidValue(whereParams[counter++]);
+        return sqlite_access_common_1.parseToDbValue(whereParams[counter++]);
     };
 }
 function __processCursor(cursorRef, returnType, reduceFn) {
@@ -144,6 +145,7 @@ function __getRowValues(cursor, returnType) {
             case 3:
                 value = sqlite3_column_text(cursor, i);
                 value = NSString.stringWithUTF8String(value).toString();
+                value = sqlite_access_common_1.parseToJsValue(value);
                 break;
             case 4:
                 continue;
@@ -180,17 +182,12 @@ function __mapToAddOrUpdateValues(values, inserting) {
     var contentValues = [];
     for (var key in values) {
         if (values.hasOwnProperty(key)) {
-            var value = __getDbValidValue(values[key]);
+            var value = sqlite_access_common_1.parseToDbValue(values[key]);
             value = value === null ? 'null' : value;
             contentValues.push(inserting ? value : key + "=" + value);
         }
     }
     return contentValues.join(",");
-}
-function __getDbValidValue(value) {
-    if (value === 0)
-        return value;
-    return Number(value) || (value && "'" + value.toString().replace("'", "''") + "'" || null);
 }
 function DbBuilder(dbName, options) {
     if (!dbName)
@@ -249,5 +246,5 @@ function __execQueryReturnOneArrayRow(db, query) {
     var result = __processCursor(cursorRef, 1);
     return result.shift();
 }
-__export(require("./common/Common"));
+__export(require("./sqlite-access-common"));
 //# sourceMappingURL=sqlite-access.ios.js.map

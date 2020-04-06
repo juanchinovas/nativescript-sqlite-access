@@ -35,8 +35,8 @@ export class HomeComponent implements OnInit {
     addText() {
         let id = this.db.insert(databaseTables.PERSONS, {
             name: this.text,
-            n: 45.23,
-            i: 1 * this.updateCounter
+            n: {No:"po' si"},
+            i: 1 * ++this.updateCounter
         });
         this.text = '';
         this.reload();

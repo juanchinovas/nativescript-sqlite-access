@@ -1,5 +1,4 @@
-import { IDatabase } from './common/IDatabase';
-import { DbCreationOptions, ReturnType } from './common/Common';
+import { DbCreationOptions, ReturnType, IDatabase } from './sqlite-access-common';
 declare class SqliteAccess implements IDatabase {
     constructor(db: android.database.sqlite.SQLiteDatabase, returnType: ReturnType);
     insert(table: string, values: {
@@ -21,4 +20,4 @@ declare class SqliteAccess implements IDatabase {
     close(): void;
 }
 export declare function DbBuilder(dbName: string, options?: DbCreationOptions): SqliteAccess;
-export * from "./common/Common";
+export * from "./sqlite-access-common";

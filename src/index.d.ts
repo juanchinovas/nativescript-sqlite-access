@@ -1,7 +1,4 @@
-import { IDatabase } from './common/IDatabase';
-import { DbCreationOptions } from './common/Common';
+import { DbCreationOptions, IDatabase } from './sqlite-access-common';
 
-export * from './common/IDatabase';
-export * from './common/Common';
-
+export { DbCreationOptions, IDatabase, ReturnType } from './sqlite-access-common';
 export declare function DbBuilder(dbName: string, options?: DbCreationOptions): IDatabase;

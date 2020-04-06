@@ -4,6 +4,7 @@ function __export(m) {
 }
 Object.defineProperty(exports, "__esModule", { value: true });
 var app = require("tns-core-modules/application");
+var sqlite_access_common_1 = require("./sqlite-access-common");
 var _db;
 var _dataReturnedType;
 var SqliteAccess = (function () {
@@ -104,6 +105,7 @@ function __getRowValues(cursor, returnType) {
                 break;
             case android.database.Cursor.FIELD_TYPE_STRING:
                 value = cursor.getString(i);
+                value = sqlite_access_common_1.parseToJsValue(value);
                 break;
             case android.database.Cursor.FIELD_TYPE_BLOB:
                 continue;
@@ -138,9 +140,12 @@ function __objectArrayToStringArray(params) {
     var stringArray = [];
     var value = null;
     for (var key in params) {
-        value = params[key] && params[key].toString() || null;
-        value = params[key] === 0 ? 0 : value;
-        stringArray.push(value);
+        value = sqlite_access_common_1.parseToDbValue(params[key]);
+        if (value === null) {
+            stringArray.push(value);
+            continue;
+        }
+        stringArray.push(value.toString());
     }
     return stringArray;
 }
@@ -148,12 +153,13 @@ function __mapToContentValues(values) {
     var contentValues = new android.content.ContentValues();
     var value = null;
     for (var key in values) {
-        value = values[key];
-        if (values.hasOwnProperty(key) && value !== null && value !== undefined) {
-            contentValues.put(key, "" + ('' + value).replace("'", "''"));
-        }
-        else {
-            contentValues.putNull(key);
+        if (values.hasOwnProperty(key)) {
+            value = sqlite_access_common_1.parseToDbValue(values[key]);
+            if (value === null) {
+                contentValues.putNull(key);
+                continue;
+            }
+            contentValues.put(key, value.toString());
         }
     }
     return contentValues;
@@ -201,5 +207,5 @@ function DbBuilder(dbName, options) {
     return new SqliteAccess(db, options.returnType);
 }
 exports.DbBuilder = DbBuilder;
-__export(require("./common/Common"));
+__export(require("./sqlite-access-common"));
 //# sourceMappingURL=sqlite-access.android.js.map

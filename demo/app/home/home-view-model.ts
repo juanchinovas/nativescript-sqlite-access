@@ -27,8 +27,8 @@ export class HomeViewModel extends Observable {
     addText() {
         let id = this.db.insert(databaseTables.PERSONS, {
             name: this.get('text'),
-            n: 45.23,
-            i: 1 * this.updateCounter
+            n: 45.5,
+            i: 1 * ++this.updateCounter
         });
         console.log("id", id);
         this.set('text', '');

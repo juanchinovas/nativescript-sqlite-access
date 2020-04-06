@@ -54,7 +54,7 @@
                 let id = this.db.insert(databaseTables.PERSONS, {
                     name: this.text,
                     n: 45.23,
-                    i: 1 * this.updateCounter
+                    i: 1 * ++this.updateCounter
                 });
                 this.text = '';
                 this.reload();

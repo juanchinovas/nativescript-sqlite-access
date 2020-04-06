@@ -1,6 +1,5 @@
-import { IDatabase } from './common/IDatabase';
 import * as fs from "tns-core-modules/file-system";
-import { DbCreationOptions, ReturnType } from './common/Common';
+import { DbCreationOptions, ReturnType, IDatabase, parseToDbValue, parseToJsValue } from './sqlite-access.common';
 
 // Super private variables
 let _db: interop.Reference<any>;
@@ -216,7 +215,7 @@ function __execQueryAndReturnStatement(sql: string, dbPointer: interop.Reference
 function __replaceQuestionMarkForParams(whereParams: Array<any>): Function {
     let counter = 0;
     return () => {
-        return __getDbValidValue(whereParams[counter++]);
+        return parseToDbValue(whereParams[counter++]);
     };
 }
 
@@ -280,6 +279,7 @@ function __getRowValues(cursor: any, returnType: ReturnType): any {
             case 3/*FIELD_TYPE_STRING*/:
                 value = sqlite3_column_text(cursor, i);
                 value = NSString.stringWithUTF8String(value).toString();
+                value = parseToJsValue(value);
                 break;
             case 4/*FIELD_TYPE_BLOB*/:
                 // uncomment the code below if you wanna use it and change continue for a break
@@ -341,22 +341,12 @@ function __mapToAddOrUpdateValues(values: { [key: string]: any; }, inserting: bo
     let contentValues = [];
     for (const key in values) {
         if (values.hasOwnProperty(key)) {
-            let value = __getDbValidValue(values[key]);
+            let value = parseToDbValue(values[key]);
             value = value === null ? 'null' : value;
             contentValues.push(inserting ? value : `${key}=${value}`);
         }
     }
     return contentValues.join(",");
-}
-
-/**
- * Trip values to insert o update
- * @param {any} value
- */
-function __getDbValidValue(value: any) {
-    if (value === 0) return value;
-    // Fixes issue #7
-    return Number(value) || (value && `'${value.toString().replace("'", "''")}'` || null);
 }
 
 /**
@@ -452,4 +442,4 @@ function __execQueryReturnOneArrayRow(db: any, query: string): any {
 /**
  * Export ReturnType and DbCreationOptions
  */
-export * from "./common/Common";
+export * from "./sqlite-access.common";

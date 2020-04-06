@@ -1,6 +1,5 @@
-import { IDatabase } from './common/IDatabase';
 import * as app from "tns-core-modules/application";
-import { DbCreationOptions, ReturnType } from './common/Common';
+import { DbCreationOptions, ReturnType, IDatabase, parseToDbValue, parseToJsValue } from './sqlite-access.common';
 
 // Super private variables
 let _db: android.database.sqlite.SQLiteDatabase;
@@ -218,6 +217,7 @@ function __getRowValues(cursor: android.database.Cursor, returnType: ReturnType)
                 break;
             case android.database.Cursor.FIELD_TYPE_STRING:
                 value = cursor.getString(i);
+                value = parseToJsValue(value);
                 break;
             case android.database.Cursor.FIELD_TYPE_BLOB:
                 // uncomment the code below if you wanna use it and change continue for break
@@ -272,9 +272,12 @@ function __objectArrayToStringArray(params: Array<any>) {
     let stringArray: Array<string> = [];
     let value = null;
     for (let key in params) {
-        value = params[key] && params[key].toString() || null;
-        value = params[key] === 0 ? 0 : value;
-        stringArray.push( value );
+        value = parseToDbValue(params[key]);
+        if (value === null) {
+            stringArray.push( value );
+            continue;
+        }
+        stringArray.push( value.toString() );
     }
     return stringArray;
 }
@@ -288,11 +291,13 @@ function __mapToContentValues(values: { [key: string]: any; }) {
     let contentValues = new android.content.ContentValues();
     let value = null;
     for (const key in values) {
-        value = values[key];
-        if (values.hasOwnProperty(key) && value !== null && value !== undefined) {
-            contentValues.put(key, `${('' + value).replace("'", "''")}`);
-        } else {
-            contentValues.putNull(key);
+        if (values.hasOwnProperty(key)) {
+            value = parseToDbValue(values[key]);
+            if (value === null) {
+                contentValues.putNull(key);
+                continue;
+            }
+            contentValues.put(key, value.toString());
         }
     }
     return contentValues;
@@ -365,4 +370,4 @@ export function DbBuilder(dbName: string, options?: DbCreationOptions): SqliteAc
 /**
  * Export ReturnType and DbCreationOptions
  */
-export * from "./common/Common";
+export * from "./sqlite-access.common";
