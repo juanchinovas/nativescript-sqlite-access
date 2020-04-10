@@ -4,7 +4,7 @@ function __export(m) {
 }
 Object.defineProperty(exports, "__esModule", { value: true });
 var app = require("tns-core-modules/application");
-var sqlite_access_common_1 = require("./sqlite-access-common");
+var sqlite_access_common_1 = require("./sqlite-access.common");
 var _db;
 var _dataReturnedType;
 var SqliteAccess = (function () {
@@ -207,5 +207,5 @@ function DbBuilder(dbName, options) {
     return new SqliteAccess(db, options.returnType);
 }
 exports.DbBuilder = DbBuilder;
-__export(require("./sqlite-access-common"));
+__export(require("./sqlite-access.common"));
 //# sourceMappingURL=sqlite-access.android.js.map

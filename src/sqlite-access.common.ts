@@ -50,7 +50,7 @@ export function parseToDbValue(value: any) {
         value = JSON.stringify(value);
     }
     // Fixes issue #7
-    return Number(value) || (value && `'${value.toString().replace("'", "''")}'` || null);
+    return Number(value) || (value && `'${value.toString().replace(/'/g, "''")}'` || null);
 }
 
 /**

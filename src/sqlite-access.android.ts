@@ -59,6 +59,7 @@ class SqliteAccess implements IDatabase {
      * @returns number
      */
     update(table: string, values: { [key: string]: any; }, whereClause: string, whereArs: any[]): number {
+        console.log( __objectArrayToStringArray(whereArs));
         return _db.update(table, __mapToContentValues(values), whereClause, __objectArrayToStringArray(whereArs));
     }
 
@@ -271,13 +272,13 @@ function __objectArrayToStringArray(params: Array<any>) {
 
     let stringArray: Array<string> = [];
     let value = null;
-    for (let key in params) {
-        value = parseToDbValue(params[key]);
+    for (let i = 0, len = params.length; i < len; i++) {
+        value = parseToDbValue(params[i]);
         if (value === null) {
             stringArray.push( value );
             continue;
         }
-        stringArray.push( value.toString() );
+        stringArray.push( value.toString().replace(/''/g,"'").replace(/^'|'$/g,'') );
     }
     return stringArray;
 }
@@ -297,7 +298,7 @@ function __mapToContentValues(values: { [key: string]: any; }) {
                 contentValues.putNull(key);
                 continue;
             }
-            contentValues.put(key, value.toString());
+            contentValues.put(key, value.toString().replace(/''/g,"'").replace(/^'|'$/g,''));
         }
     }
     return contentValues;

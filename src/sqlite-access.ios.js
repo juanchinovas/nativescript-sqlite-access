@@ -4,7 +4,7 @@ function __export(m) {
 }
 Object.defineProperty(exports, "__esModule", { value: true });
 var fs = require("tns-core-modules/file-system");
-var sqlite_access_common_1 = require("./sqlite-access-common");
+var sqlite_access_common_1 = require("./sqlite-access.common");
 var _db;
 var _dataReturnedType;
 var SqliteAccess = (function () {
@@ -246,5 +246,5 @@ function __execQueryReturnOneArrayRow(db, query) {
     var result = __processCursor(cursorRef, 1);
     return result.shift();
 }
-__export(require("./sqlite-access-common"));
+__export(require("./sqlite-access.common"));
 //# sourceMappingURL=sqlite-access.ios.js.map

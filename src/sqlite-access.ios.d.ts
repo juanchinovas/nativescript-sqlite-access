@@ -1,4 +1,4 @@
-import { DbCreationOptions, ReturnType, IDatabase } from './sqlite-access-common';
+import { DbCreationOptions, ReturnType, IDatabase } from './sqlite-access.common';
 declare class SqliteAccess implements IDatabase {
     constructor(db: interop.Reference<any>, returnType: ReturnType);
     insert(table: string, values: {
@@ -20,4 +20,4 @@ declare class SqliteAccess implements IDatabase {
     close(): void;
 }
 export declare function DbBuilder(dbName: string, options?: DbCreationOptions): SqliteAccess;
-export * from "./sqlite-access-common";
+export * from "./sqlite-access.common";
