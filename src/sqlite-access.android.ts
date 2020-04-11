@@ -1,5 +1,5 @@
 import * as app from "tns-core-modules/application";
-import { DbCreationOptions, ReturnType, IDatabase, parseToDbValue, parseToJsValue } from './sqlite-access.common';
+import { DbCreationOptions, ReturnType, IDatabase, parseToDbValue, parseToJsValue, ExtendedPromise } from './sqlite-access.common';
 
 // Super private variables
 let _db: android.database.sqlite.SQLiteDatabase;
@@ -84,14 +84,14 @@ class SqliteAccess implements IDatabase {
      *
      * @returns Promise<Array<any>>
      */
-    select(sql: string, params?: any[], reduceFn?: Function): Promise<Array<any> | any> {
-        return new Promise(function(resolve, error) {
+    select(sql: string, params?: any[]): ExtendedPromise {
+        return new ExtendedPromise(function(subscribers, resolve, reject) {
             try {
                 let cursor =  _db.rawQuery(sql, __objectArrayToStringArray(params));
-                const result = __processCursor(cursor, _dataReturnedType, reduceFn);
+                const result = __processCursor(cursor, _dataReturnedType, subscribers.shift());
                 resolve(result);
             } catch (ex) {
-                error(ex);
+                reject(ex);
             }
         });
     }
@@ -109,11 +109,11 @@ class SqliteAccess implements IDatabase {
      *
      * @returns Promise<Array<any>>
      */
-    query(table: string, columns?: string[], selection?: string, selectionArgs?: any[], groupBy?: string, orderBy?: string, limit?: string): Promise<Array<any>> {
-        return new Promise(function(resolve, error) {
+    query(table: string, columns?: string[], selection?: string, selectionArgs?: any[], groupBy?: string, orderBy?: string, limit?: string): ExtendedPromise {
+        return new ExtendedPromise(function(subscribers, resolve, error) {
             let cursor =  _db.query(table, columns, selection, __objectArrayToStringArray(selectionArgs), groupBy, orderBy, limit);
             try {
-                const result = <Array<any>>__processCursor(cursor, _dataReturnedType);
+                const result = <Array<any>>__processCursor(cursor, _dataReturnedType, subscribers.shift());
                 resolve(result);
             } catch (ex) {
                 error(ex);
@@ -171,15 +171,20 @@ class SqliteAccess implements IDatabase {
  *
  * @returns any;
  */
-function __processCursor(cursor: android.database.Cursor, returnType: ReturnType, reduceFn?: Function) {
-    let result: Array<any> | {} = reduceFn && {} || [];
+function __processCursor(cursor: android.database.Cursor, returnType: ReturnType, reduceOrMapSub?: any) {
+    let result: Array<any> | {} = reduceOrMapSub && reduceOrMapSub.initialValue || [];
     if (cursor.getCount() > 0) {
+        let dbValue = null;
         while ( cursor.moveToNext() ) {
-            if (reduceFn) {
-                result = reduceFn(result, __getRowValues(cursor, returnType));
-                continue;
+            dbValue = __getRowValues(cursor, returnType);
+            if (reduceOrMapSub) {
+                if (reduceOrMapSub.initialValue) {
+                    result = reduceOrMapSub.callback(result, dbValue, cursor.getPosition());
+                    continue;
+                }
+                dbValue = reduceOrMapSub.callback(dbValue, cursor.getPosition());
             }
-            (<Array<any>>result).push( __getRowValues(cursor, returnType) );
+            (<Array<any>>result).push( dbValue );
         }
     }
     cursor.close();

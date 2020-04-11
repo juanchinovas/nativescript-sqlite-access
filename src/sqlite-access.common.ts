@@ -3,10 +3,10 @@ export interface IDatabase {
     replace(table: string, values: { [key: string]: any }): number;
     update(table: string, values: { [key: string]: any }, whereClause: string, whereArs: Array<any>): number;
     delete(table: string, whereClause: string, whereArs: Array<any>): number;
-    select(sql: string, params?: Array<any>, reduceFn?: Function): Promise<Array<any>>;
+    select(sql: string, params?: Array<any>): ExtendedPromise;
     query(table: string, columns?: Array<string>,
         selection?: string, selectionArgs?: Array<any>,
-        groupBy?: string, orderBy?: string, limit?: string): Promise<Array<any>>;
+        groupBy?: string, orderBy?: string, limit?: string): ExtendedPromise;
     execSQL(sql: string): void;
 
     beginTransact(): void;
@@ -66,3 +66,32 @@ export function parseToJsValue(value: any) {
     } catch (ex) {}
     return parsedValue;
 }
+
+export class ExtendedPromise {
+    private _subscribers: Array<reduceSubscribersType>;
+    private _executorFn: ExecutorType;
+
+    constructor(executorFn: ExecutorType) { 
+        this._subscribers = [];
+        this._executorFn = executorFn;
+    }
+
+    map(callback: mapCallbackType): Promise<any> {
+        this._subscribers.push({callback: callback});
+       return new Promise(this._executorFn.bind(null, this._subscribers));
+    }
+
+    reduce(callback: reduceCallbackType, initialValue: any): Promise<any> {
+        this._subscribers.push({callback, initialValue});
+        return new Promise(this._executorFn.bind(null, this._subscribers));
+    }
+
+    then(callback): Promise<any> { 
+        return new Promise(this._executorFn.bind(null, this._subscribers)).then(callback);
+    }
+}
+
+type ExecutorType = (subscribers: Array<mapCallbackType | reduceSubscribersType>, resolve: Function, reject: Function) => void;
+type mapCallbackType = (row: any, index: number) => any;
+type reduceCallbackType = (accumulator: any, row: any, index: number) => any;
+type reduceSubscribersType = { callback: reduceCallbackType, initialValue?: any };

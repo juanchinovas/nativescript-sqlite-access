@@ -19,28 +19,29 @@ var SqliteAccess = (function () {
         return _db.replace(table, null, __mapToContentValues(values));
     };
     SqliteAccess.prototype.update = function (table, values, whereClause, whereArs) {
+        console.log(__objectArrayToStringArray(whereArs));
         return _db.update(table, __mapToContentValues(values), whereClause, __objectArrayToStringArray(whereArs));
     };
     SqliteAccess.prototype.delete = function (table, whereClause, whereArgs) {
         return _db.delete(table, whereClause, __objectArrayToStringArray(whereArgs));
     };
-    SqliteAccess.prototype.select = function (sql, params, reduceFn) {
-        return new Promise(function (resolve, error) {
+    SqliteAccess.prototype.select = function (sql, params) {
+        return new sqlite_access_common_1.ExtendedPromise(function (subscribers, resolve, reject) {
             try {
                 var cursor = _db.rawQuery(sql, __objectArrayToStringArray(params));
-                var result = __processCursor(cursor, _dataReturnedType, reduceFn);
+                var result = __processCursor(cursor, _dataReturnedType, subscribers.shift());
                 resolve(result);
             }
             catch (ex) {
-                error(ex);
+                reject(ex);
             }
         });
     };
     SqliteAccess.prototype.query = function (table, columns, selection, selectionArgs, groupBy, orderBy, limit) {
-        return new Promise(function (resolve, error) {
+        return new sqlite_access_common_1.ExtendedPromise(function (subscribers, resolve, error) {
             var cursor = _db.query(table, columns, selection, __objectArrayToStringArray(selectionArgs), groupBy, orderBy, limit);
             try {
-                var result = __processCursor(cursor, _dataReturnedType);
+                var result = __processCursor(cursor, _dataReturnedType, subscribers.shift());
                 resolve(result);
             }
             catch (ex) {
@@ -70,15 +71,20 @@ var SqliteAccess = (function () {
     };
     return SqliteAccess;
 }());
-function __processCursor(cursor, returnType, reduceFn) {
-    var result = reduceFn && {} || [];
+function __processCursor(cursor, returnType, reduceOrMapSub) {
+    var result = reduceOrMapSub && reduceOrMapSub.initialValue || [];
     if (cursor.getCount() > 0) {
+        var dbValue = null;
         while (cursor.moveToNext()) {
-            if (reduceFn) {
-                result = reduceFn(result, __getRowValues(cursor, returnType));
-                continue;
+            dbValue = __getRowValues(cursor, returnType);
+            if (reduceOrMapSub) {
+                if (reduceOrMapSub.initialValue) {
+                    result = reduceOrMapSub.callback(result, dbValue, cursor.getPosition());
+                    continue;
+                }
+                dbValue = reduceOrMapSub.callback(dbValue, cursor.getPosition());
             }
-            result.push(__getRowValues(cursor, returnType));
+            result.push(dbValue);
         }
     }
     cursor.close();
@@ -139,13 +145,13 @@ function __objectArrayToStringArray(params) {
         return null;
     var stringArray = [];
     var value = null;
-    for (var key in params) {
-        value = sqlite_access_common_1.parseToDbValue(params[key]);
+    for (var i = 0, len = params.length; i < len; i++) {
+        value = sqlite_access_common_1.parseToDbValue(params[i]);
         if (value === null) {
             stringArray.push(value);
             continue;
         }
-        stringArray.push(value.toString());
+        stringArray.push(value.toString().replace(/''/g, "'").replace(/^'|'$/g, ''));
     }
     return stringArray;
 }
@@ -159,7 +165,7 @@ function __mapToContentValues(values) {
                 contentValues.putNull(key);
                 continue;
             }
-            contentValues.put(key, value.toString());
+            contentValues.put(key, value.toString().replace(/''/g, "'").replace(/^'|'$/g, ''));
         }
     }
     return contentValues;

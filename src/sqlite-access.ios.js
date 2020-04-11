@@ -34,12 +34,12 @@ var SqliteAccess = (function () {
         var value = sqlite3_changes(_db.value);
         return Number(value);
     };
-    SqliteAccess.prototype.select = function (sql, params, reduceFn) {
-        return new Promise(function (resolve, error) {
+    SqliteAccess.prototype.select = function (sql, params) {
+        return new sqlite_access_common_1.ExtendedPromise(function (subscribers, resolve, error) {
             try {
                 sql = sql.replace(/\?/g, __replaceQuestionMarkForParams(params));
                 var cursor = __execQueryAndReturnStatement(sql, _db);
-                var result = __processCursor(cursor, _dataReturnedType, reduceFn);
+                var result = __processCursor(cursor, _dataReturnedType, subscribers.shift());
                 resolve(result);
             }
             catch (ex) {
@@ -54,10 +54,10 @@ var SqliteAccess = (function () {
         limit = limit && "LIMIT " + limit || "";
         var _columns = columns && columns.join(',') || table + ".*";
         var query = "SELECT " + _columns + " FROM " + table + " " + selection + " " + groupBy + " " + orderBy + " " + limit;
-        return new Promise(function (resolve, error) {
+        return new sqlite_access_common_1.ExtendedPromise(function (subscribers, resolve, error) {
             try {
                 var cursor = __execQueryAndReturnStatement(query, _db);
-                var result = __processCursor(cursor, _dataReturnedType);
+                var result = __processCursor(cursor, _dataReturnedType, subscribers.shift());
                 resolve(result);
             }
             catch (ex) {
@@ -106,17 +106,21 @@ function __replaceQuestionMarkForParams(whereParams) {
         return sqlite_access_common_1.parseToDbValue(whereParams[counter++]);
     };
 }
-function __processCursor(cursorRef, returnType, reduceFn) {
-    var result = reduceFn && {} || [];
-    var value = null, hasData = sqlite3_data_count(cursorRef) > 0;
+function __processCursor(cursorRef, returnType, reduceOrMapSub) {
+    var result = reduceOrMapSub && reduceOrMapSub.initialValue || [];
+    var dbValue = null, hasData = sqlite3_data_count(cursorRef) > 0;
     if (hasData) {
+        var counter = 0;
         do {
-            value = __getRowValues(cursorRef, returnType);
-            if (reduceFn) {
-                result = reduceFn(result, value);
-                continue;
+            dbValue = __getRowValues(cursorRef, returnType);
+            if (reduceOrMapSub) {
+                if (reduceOrMapSub.initialValue) {
+                    result = reduceOrMapSub.callback(result, dbValue, counter++);
+                    continue;
+                }
+                dbValue = reduceOrMapSub.callback(dbValue, counter++);
             }
-            result.push(value);
+            result.push(dbValue);
         } while (sqlite3_step(cursorRef) === 100);
     }
     sqlite3_finalize(cursorRef);

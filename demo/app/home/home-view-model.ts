@@ -53,7 +53,9 @@ export class HomeViewModel extends Observable {
     }
 
     reload() {
-        this.db.select(`SELECT * FROM ${databaseTables.PERSONS}`, null).then(result => {
+        this.db.select(`SELECT * FROM ${databaseTables.PERSONS}`, null)
+        .then(result => {
+            console.log("Juhahahaha");
             this.set('items', result);
         })
         .catch(console.error);
@@ -64,7 +66,16 @@ export class HomeViewModel extends Observable {
             return acc;
         };
 
-        this.db.select(`SELECT * FROM ${databaseTables.PERSONS}`, null, reducerFn).then(result => {
+        /*this.db.select(`SELECT * FROM ${databaseTables.PERSONS}`, null)
+        .reduce(reducerFn, {})
+        .then(result => {
+            console.log(result);
+        })
+        .catch(console.error);*/
+
+        this.db.query(databaseTables.PERSONS)
+        .reduce(reducerFn, {})
+        .then(result => {
             console.log(result);
         })
         .catch(console.error);

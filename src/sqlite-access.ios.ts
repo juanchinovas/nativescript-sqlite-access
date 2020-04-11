@@ -1,5 +1,5 @@
 import * as fs from "tns-core-modules/file-system";
-import { DbCreationOptions, ReturnType, IDatabase, parseToDbValue, parseToJsValue } from './sqlite-access.common';
+import { DbCreationOptions, ReturnType, IDatabase, parseToDbValue, parseToJsValue, ExtendedPromise } from './sqlite-access.common';
 
 // Super private variables
 let _db: interop.Reference<any>;
@@ -93,12 +93,12 @@ class SqliteAccess implements IDatabase {
      *
      * @returns Promise<Array<any>>
      */
-    select(sql: string, params?: any[], reduceFn?: Function): Promise<Array<any> | any> {
-        return new Promise(function(resolve, error) {
+    select(sql: string, params?: any[]): ExtendedPromise {
+        return new ExtendedPromise(function(subscribers, resolve, error) {
             try {
                 sql = sql.replace(/\?/g, <any>__replaceQuestionMarkForParams(params));
                 let cursor =  __execQueryAndReturnStatement(sql, _db);
-                const result = __processCursor(cursor, _dataReturnedType, reduceFn);
+                const result = __processCursor(cursor, _dataReturnedType, subscribers.shift());
                 resolve(result);
             } catch (ex) {
                 error(ex);
@@ -119,17 +119,17 @@ class SqliteAccess implements IDatabase {
      *
      * @returns Promise<Array<any>>
      */
-    query(table: string, columns?: string[], selection?: string, selectionArgs?: any[], groupBy?: string, orderBy?: string, limit?: string): Promise<Array<any>> {
+    query(table: string, columns?: string[], selection?: string, selectionArgs?: any[], groupBy?: string, orderBy?: string, limit?: string): ExtendedPromise {
         selection = selection && "WHERE " + selection.replace(/\?/g, <any>__replaceQuestionMarkForParams(selectionArgs)) || "";
         groupBy = groupBy && "GROUP BY " + groupBy || "";
         orderBy = orderBy && "ORDER BY " + orderBy || "";
         limit = limit && "LIMIT " + limit || "";
         const _columns = columns && columns.join(',') || `${table}.*`;
         let query = `SELECT ${_columns} FROM ${table} ${selection} ${groupBy} ${orderBy} ${limit}`;
-        return new Promise(function(resolve, error) {
+        return new ExtendedPromise(function(subscribers, resolve, error) {
             try {
                 let cursor =  __execQueryAndReturnStatement(query, _db);
-                const result = <Array<any>>__processCursor(cursor, _dataReturnedType);
+                const result = <Array<any>>__processCursor(cursor, _dataReturnedType, subscribers.shift());
                 resolve(result);
             } catch (ex) {
                 error(`ErrCode:${ex}`);
@@ -225,19 +225,23 @@ function __replaceQuestionMarkForParams(whereParams: Array<any>): Function {
  *
  * @returns (returnType: ReturnType) => Array<any>;
  */
-function __processCursor(cursorRef: any, returnType: ReturnType, reduceFn?: Function) {
-    let result: Array<any> | {} = reduceFn && {} || [];
-    let value = null,
+function __processCursor(cursorRef: any, returnType: ReturnType, reduceOrMapSub?: any) {
+    let result: Array<any> | {} = reduceOrMapSub && reduceOrMapSub.initialValue || [];
+    let dbValue = null,
         hasData = sqlite3_data_count(cursorRef) > 0;
 
     if (hasData) {
+        let counter = 0;
         do {
-            value = __getRowValues(cursorRef, returnType);
-            if (reduceFn) {
-                result = reduceFn(result,  value);
-                continue;
+            dbValue = __getRowValues(cursorRef, returnType);
+            if (reduceOrMapSub) {
+                if (reduceOrMapSub.initialValue) {
+                    result = reduceOrMapSub.callback(result, dbValue, counter++);
+                    continue;
+                }
+                dbValue = reduceOrMapSub.callback(dbValue, counter++);
             }
-            (<Array<any>>result).push( value );
+            (<Array<any>>result).push( dbValue );
             // Condiction on the while fixes issue #8
         } while (sqlite3_step(cursorRef) === 100 /*SQLITE_ROW*/);
     }
