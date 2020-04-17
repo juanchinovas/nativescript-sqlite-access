@@ -56,8 +56,8 @@ describe("#insert()", function() {
         });
         database.rollback();
 
-        database.select(`SELECT COUNT(*) account FROM ${databaseTables.PERSONS}`)
-        .then(function(results) {
+        database.select(`SELECT COUNT(*) account FROM ${databaseTables.PERSONS}`).process()
+        .then(function(results: Array<any>) {
             let result = results.pop();
             done(result.count === 3);
         })

@@ -12,32 +12,32 @@ var SqliteAccess = (function () {
         _db = db;
         _dataReturnedType = returnType;
     }
-    SqliteAccess.prototype.insert = function (table, values) {
-        this.execSQL("INSERT INTO " + table + " (" + Object.keys(values).join(",") + ") VALUES(" + __mapToAddOrUpdateValues(values, true) + ")");
+    SqliteAccess.prototype.insert = function (tableName, values) {
+        this.execSQL("INSERT INTO " + tableName + " (" + Object.keys(values).join(",") + ") VALUES(" + __mapToAddOrUpdateValues(values, true) + ")");
         var value = sqlite3_last_insert_rowid(_db.value);
         return Number(value);
     };
-    SqliteAccess.prototype.replace = function (table, values) {
-        this.execSQL("REPLACE INTO " + table + " (" + Object.keys(values).join(",") + ") VALUES(" + __mapToAddOrUpdateValues(values, true) + ")");
+    SqliteAccess.prototype.replace = function (tableName, values) {
+        this.execSQL("REPLACE INTO " + tableName + " (" + Object.keys(values).join(",") + ") VALUES(" + __mapToAddOrUpdateValues(values, true) + ")");
         var value = sqlite3_changes(_db.value);
         return Number(value);
     };
-    SqliteAccess.prototype.update = function (table, values, whereClause, whereArs) {
+    SqliteAccess.prototype.update = function (tableName, values, whereClause, whereArs) {
         whereClause = whereClause && "WHERE " + whereClause.replace(/\?/g, __replaceQuestionMarkForParams(whereArs)) || "";
-        this.execSQL("UPDATE " + table + " SET " + __mapToAddOrUpdateValues(values, false) + " " + whereClause);
+        this.execSQL("UPDATE " + tableName + " SET " + __mapToAddOrUpdateValues(values, false) + " " + whereClause);
         var value = sqlite3_changes(_db.value);
         return Number(value);
     };
-    SqliteAccess.prototype.delete = function (table, whereClause, whereArgs) {
+    SqliteAccess.prototype.delete = function (tableName, whereClause, whereArgs) {
         whereClause = whereClause && "WHERE " + whereClause.replace(/\?/g, __replaceQuestionMarkForParams(whereArgs)) || "";
-        this.execSQL("DELETE FROM " + table + " " + whereClause);
+        this.execSQL("DELETE FROM " + tableName + " " + whereClause);
         var value = sqlite3_changes(_db.value);
         return Number(value);
     };
-    SqliteAccess.prototype.select = function (sql, params) {
+    SqliteAccess.prototype.select = function (sql, conditionParams) {
         return new sqlite_access_common_1.ExtendedPromise(function (subscribers, resolve, error) {
             try {
-                sql = sql.replace(/\?/g, __replaceQuestionMarkForParams(params));
+                sql = sql.replace(/\?/g, __replaceQuestionMarkForParams(conditionParams));
                 var cursor = __execQueryAndReturnStatement(sql, _db);
                 var result = __processCursor(cursor, _dataReturnedType, subscribers.shift());
                 resolve(result);
@@ -47,13 +47,13 @@ var SqliteAccess = (function () {
             }
         });
     };
-    SqliteAccess.prototype.query = function (table, columns, selection, selectionArgs, groupBy, orderBy, limit) {
+    SqliteAccess.prototype.query = function (tableName, columns, selection, selectionArgs, groupBy, orderBy, limit) {
         selection = selection && "WHERE " + selection.replace(/\?/g, __replaceQuestionMarkForParams(selectionArgs)) || "";
         groupBy = groupBy && "GROUP BY " + groupBy || "";
         orderBy = orderBy && "ORDER BY " + orderBy || "";
         limit = limit && "LIMIT " + limit || "";
-        var _columns = columns && columns.join(',') || table + ".*";
-        var query = "SELECT " + _columns + " FROM " + table + " " + selection + " " + groupBy + " " + orderBy + " " + limit;
+        var _columns = columns && columns.join(',') || tableName + ".*";
+        var query = "SELECT " + _columns + " FROM " + tableName + " " + selection + " " + groupBy + " " + orderBy + " " + limit;
         return new sqlite_access_common_1.ExtendedPromise(function (subscribers, resolve, error) {
             try {
                 var cursor = __execQueryAndReturnStatement(query, _db);

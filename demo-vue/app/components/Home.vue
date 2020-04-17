@@ -75,7 +75,8 @@
                 console.log("updated:", updated);
             },
             reload: function () {
-                this.db.select(`SELECT * FROM ${databaseTables.PERSONS}`, null).then(result => {
+                this.db.select(`SELECT * FROM ${databaseTables.PERSONS}`, null).process()
+                .then(result => {
                     this.items = result;
                 })
                 .catch(err => {
@@ -89,7 +90,22 @@
                     return acc;
                 };
 
-                this.db.select(`SELECT * FROM ${databaseTables.PERSONS}`, null, reducerFn).then(result => {
+                const mapFn = (next) => {
+                    return next.name;
+                };
+
+                this.db.query(databaseTables.PERSONS)
+                .reduce(reducerFn, {})
+                .then(result => {
+                    console.log("Reducing.: ");
+                    console.log(result);
+                })
+                .catch(console.error);
+
+                this.db.query(databaseTables.PERSONS)
+                .map(mapFn)
+                .then(result => {
+                    console.log("Mapping.: ");
                     console.log(result);
                 })
                 .catch(console.error);

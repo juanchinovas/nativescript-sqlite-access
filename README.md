@@ -1,12 +1,10 @@
 # NativeScript sqlite access
 
 [![NPM version][npm-image]][npm-url]
-[![Downloads][downloads-image]][npm-url]
 [![TotalDownloads][total-downloads-image]][npm-url]
 
 [npm-image]:http://img.shields.io/npm/v/nativescript-sqlite-access.svg
 [npm-url]:https://npmjs.org/package/nativescript-sqlite-access
-[downloads-image]:http://img.shields.io/npm/dm/nativescript-sqlite-access.svg
 [total-downloads-image]:http://img.shields.io/npm/dt/nativescript-sqlite-access.svg?label=total%20downloads
 
 Just a NativeScript plugin to access and manage data with sqlite on ![apple](https://cdn3.iconfinder.com/data/icons/picons-social/57/16-apple-32.png) ![android](https://cdn4.iconfinder.com/data/icons/logos-3/228/android-32.png). 
@@ -77,56 +75,139 @@ export class HomeViewModel {
 |returnType|`enum`| Indicate the type object returned by the plugin. Possible values `ReturnType.AS_OBJECT` and `ReturnType.AS_ARRAY` |
 
 ## API
+```typescript
+/**
+* Insert a row into table with the values (key = columns and values = columns value)
+*
+* @param {string} tableName
+* @param {{ [key: string]: any; }} values
+*
+* @returns {number}  id inserted
+*/
 
-Below all the functions available in the SqliteAccess object.
-    
-insert values *column/value* in the table and return the last inserted id.
-```typescript
-insert(tableName:string, values:{[column:string]: any}):number;    
+insert(tableName: string, values: { [key: string]: any }): number;
 ```
-replace values *column/value* in the table if primary key exists. Return the number of affected rows
 ```typescript
-replace(tableName:string, values:{[column:string]: any}):number;
+/**
+* Replace a row values in the table with the values (key = columns and values = columns value).
+* The table must has a primary column to match with
+*
+* @param {string} tableName
+* @param {{ [key: string]: any; }} values
+*
+* @returns {number} rows affected
+*/
+replace(tableName: string, values: { [key: string]: any }): number;
 ```
-update values *column/value* in the table to the matched row. Return the number of affected rows
 ```typescript
-update(table: string, values: {[key:string]: any}, whereClause: string, whereArs: Array<any>): number;
+/**
+* Update a row values in the table with the values (key = columns and values = columns value) to the matched row.
+*
+* @param {string} tableName
+* @param {{ [key: string]: any; }} values
+* @param {string} whereClause
+* @param {Array<any>} whereArs
+*
+* @returns {number} rows affected
+*/
+update(tableName: string, values: { [key: string]: any }, whereClause: string, whereArs: Array<any>): number;
 ```
-Delete rows from table that match where clause.
-whereClause param must follow the format `column1=? and column2=?`
 ```typescript
-delete(table: string, whereClause?: string, whereArs?: Array<any>): number;
+/**
+* Delete rows or a row from the table that matches the condition.
+*
+* @param {string} tableName
+* @param {string} whereClause - optional
+* @param {Array<any>} whereArs - optional
+*
+* @returns {number} rows affected
+*/
+delete(tableName: string, whereClause?: string, whereArs?: Array<any>): number;
 ```
-Query the table data.
-sql param follow the next convention 
-"SELECT [COLUMNS,] FROM TABLE WHERE column1=? and column2=?". The where can be omitted.
-
 ```typescript
-select(sql: string, params?: any[], reduceFn?: Function): Promise<Array<any> | any>;
+/**
+* Query the table data that matches the condition.
+* @see ExtendedPromise for more information.
+* 
+* @param {string} sql SQL Query. `SELECT [COLUMNS,] FROM TABLE WHERE column1=? and column2=?`. WHERE clause can be omitted
+* @param {Array<any>} conditionParams - optional if there is not WHERE clause in the sql param
+*
+* @returns {ExtendedPromise} ExtendedPromise object that returns a Promise<Array<any>>
+*/
+select(sql: string, conditionParams?: Array<any>): ExtendedPromise;
 ```
-Query table
 ```typescript
-query(table: string, columns?: Array<string>,
+/**
+* Execute a query selector with the params passed in
+* @see ExtendedPromise for more information.
+* 
+* @param {string} tableName
+* @param {Array<string>} columns - optional
+* @param {string} selection - optional
+* @param {Array<string>} selectionArgs - optional
+* @param {string} groupBy - optional
+* @param {string} orderBy - optional
+* @param {string} limit - optional
+*
+* @returns {ExtendedPromise} ExtendedPromise object that returns a Promise<Array<any>>
+*/
+query(tableName: string, columns?: Array<string>,
     selection?: string, selectionArgs?: Array<any>,
-    groupBy?: string, orderBy?: string, limit?: string): Promise<Array<any>>;
+    groupBy?: string, orderBy?: string, limit?: string): ExtendedPromise;
 ```
-Execute a sql script and do not return value
 ```typescript
+/**
+* Execute a SQL script and do not return anything
+* @param {string} sql
+*/
 execSQL(sql: string): void;
 ```
-Start transaction
 ```typescript
+/**
+* Open a transaction
+*/
 beginTransact(): void;
 ```
-Commit transaction
 ```typescript
+/**
+* Commit the transaction
+*/
 commit(): void;
 ```
-Rollback transaction
 ```typescript
+/**
+* Rollback a transaction
+*/
 rollback(): void;
 ```
-Close the sqlite database connection
 ```typescript
+/**
+* Close the database connection
+*/
 close(): void;
 ```
+
+> `select` and `query` function return a `ExtendedPromise` in  v1.0.8.
+```typescript
+/**
+ * Let it add preprocessing function to each row matched by SQL query, each function return a Promise object.
+ * The map and reduce functions are similar to the functions apply to an Array, 
+ * just one preprocessing function is apply to the data per call.
+ * The process function is call just if the map or reduce function will not be apply.
+ */
+class ExtendedPromise {
+
+    map(callback): Promise<any>;
+
+    reduce(callback, initialValue: any): Promise<any>;
+
+    process(): Promise<any>;
+}
+```
+
+### Changes
+
+v1.0.8
+- Fixes the wrong import file in the index file.
+- parameter reduceFn was remove from `select` function.
+- `select` and `query` function return a `ExtendedPromise` that let you add a map or reduce function to each matched rows.

@@ -22,67 +22,66 @@ class SqliteAccess implements IDatabase {
     }
 
     /**
-     * Insert a row into table with the values and return the last
-     * inserted id in the table
+     * Insert a row into table with the values (key = columns and values = columns value)
      *
-     * @param table string
-     * @param values { [key: string]: any; }
+     * @param {string} tableName
+     * @param {{ [key: string]: any; }} values
      *
-     * @returns number
+     * @returns {number}  id inserted
      */
     insert(table: string, values: { [key: string]: any; }): number {
         return _db.insert(table, null, __mapToContentValues(values));
     }
 
     /**
-     * Replace a row in the table with the values and
-     * return the number of rows affected
+     * Replace a row values in the table with the values (key = columns and values = columns value).
+     * The table must has a primary column to match with
      *
-     * @param table string
-     * @param values { [key: string]: any; }
+     * @param {string} tableName
+     * @param {{ [key: string]: any; }} values
      *
-     * @returns number
+     * @returns {number} rows affected
      */
     replace(table: string, values: { [key: string]: any; }): number {
         return _db.replace(table, null, __mapToContentValues(values));
     }
 
     /**
-     * Update a row in the table with the values and the filters.
-     * return the number of rows affected
+     * Update a row values in the table with the values (key = columns and values = columns value) to the matched row.
      *
-     * @param table string
-     * @param values { [key: string]: any; }
-     * @param whereClause string
-     * @param whereArs Array<string>
+     * @param {string} tableName
+     * @param {{ [key: string]: any; }} values
+     * @param {string} whereClause
+     * @param {Array<any>} whereArs
      *
-     * @returns number
+     * @returns {number} rows affected
      */
     update(table: string, values: { [key: string]: any; }, whereClause: string, whereArs: any[]): number {
         console.log( __objectArrayToStringArray(whereArs));
         return _db.update(table, __mapToContentValues(values), whereClause, __objectArrayToStringArray(whereArs));
     }
 
-    /**
-     * Delete a row from the table with the filter.
-     * return the number of rows affected
+   /**
+     * Delete rows or a row from the table that matches the condition.
      *
-     * @param table string
-     * @param whereClause? string
-     * @param whereArgs? Array<any>
+     * @param {string} tableName
+     * @param {string} whereClause - optional
+     * @param {Array<any>} whereArs - optional
      *
-     * @returns number
+     * @returns {number} rows affected
      */
     delete(table: string, whereClause?: string, whereArgs?: any[]): number {
         return _db.delete(table, whereClause, __objectArrayToStringArray(whereArgs));
     }
 
     /**
-     * Execute a query selector
-     * @param sql string
-     * @param params Array<any>
+     * Query the table data that matches the condition.
+     * @see ExtendedPromise for more information.
      *
-     * @returns Promise<Array<any>>
+     * @param {string} sql SQL Query. `SELECT [COLUMNS,] FROM TABLE WHERE column1=? and column2=?`. WHERE clause can be omitted
+     * @param {Array<any>} conditionParams - optional if there is not WHERE clause in the sql param
+     *
+     * @returns {ExtendedPromise} ExtendedPromise object that returns a Promise<Array<any>>
      */
     select(sql: string, params?: any[]): ExtendedPromise {
         return new ExtendedPromise(function(subscribers, resolve, reject) {
@@ -97,17 +96,18 @@ class SqliteAccess implements IDatabase {
     }
 
     /**
-     * Execute a query selector
+     * Execute a query selector with the params passed in
+     * @see ExtendedPromise for more information.
      *
-     * @param table string
-     * @param columns Array<string>
-     * @param selection string
-     * @param selectionArgs Array<any>
-     * @param groupBy string
-     * @param orderBy string
-     * @param limit string
+     * @param {string} tableName
+     * @param {Array<string>} columns - optional
+     * @param {string} selection - optional
+     * @param {Array<string>} selectionArgs - optional
+     * @param {string} groupBy - optional
+     * @param {string} orderBy - optional
+     * @param {string} limit - optional
      *
-     * @returns Promise<Array<any>>
+     * @returns {ExtendedPromise} ExtendedPromise object that returns a Promise<Array<any>>
      */
     query(table: string, columns?: string[], selection?: string, selectionArgs?: any[], groupBy?: string, orderBy?: string, limit?: string): ExtendedPromise {
         return new ExtendedPromise(function(subscribers, resolve, error) {
@@ -283,7 +283,7 @@ function __objectArrayToStringArray(params: Array<any>) {
             stringArray.push( value );
             continue;
         }
-        stringArray.push( value.toString().replace(/''/g,"'").replace(/^'|'$/g,'') );
+        stringArray.push( value.toString().replace(/''/g, "'").replace(/^'|'$/g, '') );
     }
     return stringArray;
 }
@@ -303,7 +303,7 @@ function __mapToContentValues(values: { [key: string]: any; }) {
                 contentValues.putNull(key);
                 continue;
             }
-            contentValues.put(key, value.toString().replace(/''/g,"'").replace(/^'|'$/g,''));
+            contentValues.put(key, value.toString().replace(/''/g, "'").replace(/^'|'$/g,' '));
         }
     }
     return contentValues;

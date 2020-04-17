@@ -17,7 +17,7 @@ describe("Database creation", function() {
 
         it(`It should be created table named ${databaseTables.PERSONS}`, function(done) {
             if (database) {
-                database.query(databaseTables.PERSONS)
+                database.query(databaseTables.PERSONS).process()
                 .then(function() {
                     done(true);
                 })

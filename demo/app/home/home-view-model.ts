@@ -9,12 +9,8 @@ export class HomeViewModel extends Observable {
         super();
         this.db = DbBuilder(databaseName, <DbCreationOptions>{
             version: 1,
-            createTableScriptsFn: () => {
-                return creationTableQueries;
-            },
-            dropTableScriptsFn: () => {
-                return dropTableQueries;
-            }
+            createTableScriptsFn: () => creationTableQueries,
+            dropTableScriptsFn: () => dropTableQueries
         });
 
         this.set('text', '');
@@ -53,9 +49,8 @@ export class HomeViewModel extends Observable {
     }
 
     reload() {
-        this.db.select(`SELECT * FROM ${databaseTables.PERSONS}`, null)
+        this.db.select(`SELECT * FROM ${databaseTables.PERSONS}`).process()
         .then(result => {
-            console.log("Juhahahaha");
             this.set('items', result);
         })
         .catch(console.error);
@@ -66,16 +61,22 @@ export class HomeViewModel extends Observable {
             return acc;
         };
 
-        /*this.db.select(`SELECT * FROM ${databaseTables.PERSONS}`, null)
-        .reduce(reducerFn, {})
-        .then(result => {
-            console.log(result);
-        })
-        .catch(console.error);*/
+        const mapFn = (next) => {
+            return next.name;
+        };
 
         this.db.query(databaseTables.PERSONS)
         .reduce(reducerFn, {})
         .then(result => {
+            console.log("Reducing.: ");
+            console.log(result);
+        })
+        .catch(console.error);
+
+        this.db.query(databaseTables.PERSONS)
+        .map(mapFn)
+        .then(result => {
+            console.log("Mapping.: ");
             console.log(result);
         })
         .catch(console.error);

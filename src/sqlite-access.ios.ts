@@ -22,81 +22,80 @@ class SqliteAccess implements IDatabase {
     }
 
     /**
-     * Insert a row into table with the values and return the last
-     * inserted id in the table
+     * Insert a row into table with the values (key = columns and values = columns value)
      *
-     * @param table     string
-     * @param values    { [key: string]: any; }
+     * @param {string} tableName
+     * @param {{ [key: string]: any; }} values
      *
-     * @returns number
+     * @returns {number}  id inserted
      */
-    insert(table: string, values: { [key: string]: any; }): number {
-        this.execSQL(`INSERT INTO ${table} (${Object.keys(values).join(",")}) VALUES(${__mapToAddOrUpdateValues(values, true)})`);
+    insert(tableName: string, values: { [key: string]: any; }): number {
+        this.execSQL(`INSERT INTO ${tableName} (${Object.keys(values).join(",")}) VALUES(${__mapToAddOrUpdateValues(values, true)})`);
         let value = sqlite3_last_insert_rowid(_db.value);
         return Number(value);
     }
 
     /**
-     * Replace a row in the table with the values and
-     * return the number of rows affected
+     * Replace a row values in the table with the values (key = columns and values = columns value).
+     * The table must has a primary column to match with
      *
-     * @param table string
-     * @param values { [key: string]: any; }
+     * @param {string} tableName
+     * @param {{ [key: string]: any; }} values
      *
-     * @returns number
+     * @returns {number} rows affected
      */
-    replace(table: string, values: { [key: string]: any; }): number {
-        this.execSQL(`REPLACE INTO ${table} (${Object.keys(values).join(",")}) VALUES(${__mapToAddOrUpdateValues(values, true)})`);
+    replace(tableName: string, values: { [key: string]: any; }): number {
+        this.execSQL(`REPLACE INTO ${tableName} (${Object.keys(values).join(",")}) VALUES(${__mapToAddOrUpdateValues(values, true)})`);
         let value = sqlite3_changes(_db.value);
         return Number(value);
     }
 
     /**
-     * Update a row in the table with the values and the filters.
-     * return the number of rows affected
+     * Update a row values in the table with the values (key = columns and values = columns value) to the matched row.
      *
-     * @param table string
-     * @param values { [key: string]: any; }
-     * @param whereClause string
-     * @param whereArs Array<any>
+     * @param {string} tableName
+     * @param {{ [key: string]: any; }} values
+     * @param {string} whereClause
+     * @param {Array<any>} whereArs
      *
-     * @returns number
+     * @returns {number} rows affected
      */
-    update(table: string, values: { [key: string]: any; }, whereClause: string, whereArs: any[]): number {
+    update(tableName: string, values: { [key: string]: any; }, whereClause: string, whereArs: any[]): number {
         whereClause = whereClause && "WHERE " + whereClause.replace(/\?/g, <any>__replaceQuestionMarkForParams(whereArs)) || "";
-        this.execSQL(`UPDATE ${table} SET ${__mapToAddOrUpdateValues(values, false)} ${whereClause}`);
+        this.execSQL(`UPDATE ${tableName} SET ${__mapToAddOrUpdateValues(values, false)} ${whereClause}`);
         let value = sqlite3_changes(_db.value);
         return Number(value);
     }
 
     /**
-     * Delete a row from the table with the filter.
-     * return the number of rows affected
+     * Delete rows or a row from the table that matches the condition.
      *
-     * @param table string
-     * @param whereClause? string
-     * @param whereArgs? Array<any>
+     * @param {string} tableName
+     * @param {string} whereClause - optional
+     * @param {Array<any>} whereArs - optional
      *
-     * @returns number
+     * @returns {number} rows affected
      */
-    delete(table: string, whereClause?: string, whereArgs?: any[]): number {
+    delete(tableName: string, whereClause?: string, whereArgs?: any[]): number {
         whereClause = whereClause && "WHERE " + whereClause.replace(/\?/g, <any>__replaceQuestionMarkForParams(whereArgs)) || "";
-        this.execSQL(`DELETE FROM ${table} ${whereClause}`);
+        this.execSQL(`DELETE FROM ${tableName} ${whereClause}`);
         let value = sqlite3_changes(_db.value);
         return Number(value);
     }
 
     /**
-     * Execute a query selector
-     * @param sql string
-     * @param params Array<any>
+     * Query the table data that matches the condition.
+     * @see ExtendedPromise for more information.
      *
-     * @returns Promise<Array<any>>
+     * @param {string} sql SQL Query. `SELECT [COLUMNS,] FROM TABLE WHERE column1=? and column2=?`. WHERE clause can be omitted
+     * @param {Array<any>} conditionParams - optional if there is not WHERE clause in the sql param
+     *
+     * @returns {ExtendedPromise} ExtendedPromise object that returns a Promise<Array<any>>
      */
-    select(sql: string, params?: any[]): ExtendedPromise {
+    select(sql: string, conditionParams?: any[]): ExtendedPromise {
         return new ExtendedPromise(function(subscribers, resolve, error) {
             try {
-                sql = sql.replace(/\?/g, <any>__replaceQuestionMarkForParams(params));
+                sql = sql.replace(/\?/g, <any>__replaceQuestionMarkForParams(conditionParams));
                 let cursor =  __execQueryAndReturnStatement(sql, _db);
                 const result = __processCursor(cursor, _dataReturnedType, subscribers.shift());
                 resolve(result);
@@ -107,25 +106,26 @@ class SqliteAccess implements IDatabase {
     }
 
     /**
-     * Execute a query selector
+     * Execute a query selector with the params passed in
+     * @see ExtendedPromise for more information.
      *
-     * @param table string
-     * @param columns Array<string>
-     * @param selection string
-     * @param selectionArgs Array<string>
-     * @param groupBy string
-     * @param orderBy string
-     * @param limit string
+     * @param {string} tableName
+     * @param {Array<string>} columns - optional
+     * @param {string} selection - optional
+     * @param {Array<string>} selectionArgs - optional
+     * @param {string} groupBy - optional
+     * @param {string} orderBy - optional
+     * @param {string} limit - optional
      *
-     * @returns Promise<Array<any>>
+     * @returns {ExtendedPromise} ExtendedPromise object that returns a Promise<Array<any>>
      */
-    query(table: string, columns?: string[], selection?: string, selectionArgs?: any[], groupBy?: string, orderBy?: string, limit?: string): ExtendedPromise {
+    query(tableName: string, columns?: string[], selection?: string, selectionArgs?: any[], groupBy?: string, orderBy?: string, limit?: string): ExtendedPromise {
         selection = selection && "WHERE " + selection.replace(/\?/g, <any>__replaceQuestionMarkForParams(selectionArgs)) || "";
         groupBy = groupBy && "GROUP BY " + groupBy || "";
         orderBy = orderBy && "ORDER BY " + orderBy || "";
         limit = limit && "LIMIT " + limit || "";
-        const _columns = columns && columns.join(',') || `${table}.*`;
-        let query = `SELECT ${_columns} FROM ${table} ${selection} ${groupBy} ${orderBy} ${limit}`;
+        const _columns = columns && columns.join(',') || `${tableName}.*`;
+        let query = `SELECT ${_columns} FROM ${tableName} ${selection} ${groupBy} ${orderBy} ${limit}`;
         return new ExtendedPromise(function(subscribers, resolve, error) {
             try {
                 let cursor =  __execQueryAndReturnStatement(query, _db);
@@ -138,7 +138,7 @@ class SqliteAccess implements IDatabase {
     }
     /**
      * Execute a SQL script and do not return anything
-     * @param sql string
+     * @param {string} sql
      */
     execSQL(sql: string) {
         let cursorRef: interop.Reference<any>;
@@ -171,7 +171,7 @@ class SqliteAccess implements IDatabase {
      * Close the database connection
      */
     close(): void {
-        if (_db === null) { // already closed
+        if (_db === null) {
             return;
         }
 
