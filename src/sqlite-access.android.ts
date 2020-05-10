@@ -303,7 +303,7 @@ function __mapToContentValues(values: { [key: string]: any; }) {
                 contentValues.putNull(key);
                 continue;
             }
-            contentValues.put(key, value.toString().replace(/''/g, "'").replace(/^'|'$/g,' '));
+            contentValues.put(key, value.toString().replace(/''/g, "'").replace(/^'|'$/g, ''));
         }
     }
     return contentValues;

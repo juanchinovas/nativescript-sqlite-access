@@ -242,7 +242,7 @@ function __processCursor(cursorRef: any, returnType: ReturnType, reduceOrMapSub?
                 dbValue = reduceOrMapSub.callback(dbValue, counter++);
             }
             (<Array<any>>result).push( dbValue );
-            // Condiction on the while fixes issue #8
+            // Condition on the while fixes issue #8
         } while (sqlite3_step(cursorRef) === 100 /*SQLITE_ROW*/);
     }
 

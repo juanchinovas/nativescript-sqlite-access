@@ -35,7 +35,7 @@ export class HomeComponent implements OnInit {
     addText() {
         let id = this.db.insert(databaseTables.PERSONS, {
             name: this.text,
-            n: {No:"po' si"},
+            n: { No: "po' si" },
             i: 1 * ++this.updateCounter
         });
         this.text = '';
