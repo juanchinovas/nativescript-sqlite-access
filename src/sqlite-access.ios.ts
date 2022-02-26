@@ -1,4 +1,4 @@
-import * as fs from "tns-core-modules/file-system";
+import { knownFolders } from "@nativescript/core/file-system";
 import { DbCreationOptions, ReturnType, IDatabase, parseToDbValue, parseToJsValue, ExtendedPromise } from './sqlite-access.common';
 
 // Super private variables
@@ -321,7 +321,7 @@ function __openCreateDataBase(dbName: string, mode: number) {
     if (dbName === ":memory:") {
         resultCode = sqlite3_open_v2(dbName, dbInstance, mode | 296 /*SQLITE_OPEN_MEMORY*/, null);
     } else {
-        dbName = `${fs.knownFolders.documents().path}/${dbName}`;
+        dbName = `${knownFolders.documents().path}/${dbName}`;
         mode =  mode | 4 /*SQLITE_OPEN_CREATE*/;
 
         resultCode = sqlite3_open_v2(dbName, dbInstance, mode, null);

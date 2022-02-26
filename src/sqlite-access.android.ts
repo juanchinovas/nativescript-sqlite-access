@@ -1,4 +1,4 @@
-import * as app from "tns-core-modules/application";
+import { Application } from "@nativescript/core";
 import { DbCreationOptions, ReturnType, IDatabase, parseToDbValue, parseToJsValue, ExtendedPromise } from './sqlite-access.common';
 
 // Super private variables
@@ -313,8 +313,8 @@ function __mapToContentValues(values: { [key: string]: any; }) {
  * Get and return Android app Context
  */
 function __getContext() {
-    return (app.android.context
-            || (app.getNativeApplication && app.getNativeApplication()));
+    return (Application.android.context
+            || (Application.getNativeApplication && Application.getNativeApplication()));
 }
 
 /**

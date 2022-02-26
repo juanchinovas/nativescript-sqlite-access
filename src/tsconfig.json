@@ -1,14 +1,15 @@
 {
     "compilerOptions": {
-        "target": "es5",
-        "module": "commonjs",
+        "target": "ES2019",
+        "module": "ESNext",
+        "moduleResolution": "node",
         "declaration": true,
         "removeComments": true,
         "noLib": false,
         "emitDecoratorMetadata": true,
         "experimentalDecorators": true,
         "skipLibCheck": true,
-        "lib": ["es6", "dom"],
+        "lib": ["es2019", "dom"],
         "sourceMap": true,
         "pretty": true,
         "allowUnreachableCode": false,
