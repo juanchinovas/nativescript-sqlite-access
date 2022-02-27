@@ -50,6 +50,15 @@ export interface IDatabase {
      */
     select(sql: string, conditionParams?: Array<any>): ExtendedPromise;
     /**
+     * Query the table data that matches the condition.
+     *
+     * @param {string} sql SQL Query. `SELECT [COLUMNS,] FROM TABLE WHERE column1=? and column2=?`. WHERE clause can be omitted
+     * @param {Array<any>} conditionParams - optional if there is not WHERE clause in the sql param
+     *
+     * @returns {IterableIterator<any>}
+     */
+    selectAsCursor(sql: string, conditionParams?: Array<any>): IterableIterator<any>;
+    /**
      * Execute a query selector with the params passed in
      * @see ExtendedPromise for more information.
      *
@@ -63,9 +72,25 @@ export interface IDatabase {
      *
      * @returns {ExtendedPromise} ExtendedPromise object that returns a Promise<Array<any>>
      */
-    query(tableName: string, columns?: Array<string>,
+    query(param: { tableName: string, columns?: Array<string>,
         selection?: string, selectionArgs?: Array<any>,
-        groupBy?: string, orderBy?: string, limit?: string): ExtendedPromise;
+        groupBy?: string, orderBy?: string, limit?: string }): ExtendedPromise;
+    /**
+     * Execute a query selector with the params passed in
+     *
+     * @param {string} tableName
+     * @param {Array<string>} columns - optional
+     * @param {string} selection - optional
+     * @param {Array<string>} selectionArgs - optional
+     * @param {string} groupBy - optional
+     * @param {string} orderBy - optional
+     * @param {string} limit - optional
+     *
+     * @returns {IterableIterator<any>}
+     */
+    queryAsCursor(param: {tableName: string, columns?: Array<string>,
+            selection?: string, selectionArgs?: Array<any>,
+            groupBy?: string, orderBy?: string, limit?: string}): IterableIterator<any>;
     /**
      * Execute a SQL script and do not return anything
      * @param {string} sql
@@ -89,6 +114,11 @@ export interface IDatabase {
      * Close the database connection
      */
     close(): void;
+    /**
+     * Determine database connection is closed
+     * @returns {boolean}
+     */
+    isClose(): boolean;
 }
 
 /**
@@ -133,13 +163,36 @@ export function parseToDbValue(value: any) {
  * @param {any} value
  */
 export function parseToJsValue(value: any) {
-    if (!value) return value;
-
     let parsedValue = value;
     try {
         parsedValue = JSON.parse(value);
-    } catch (ex) {}
+    } catch {}
     return parsedValue;
+}
+
+export function runInitialDbScript(
+    currDbVersion: number,
+    options: DbCreationOptions,
+    callback: (script: string) => void
+) {
+    if (options.version < currDbVersion) {
+        throw new Error(
+            `It is not possible to set the version ${options.version} to database, because is lower then current version, Db current version is
+            ${currDbVersion}`
+        );
+    }
+
+    // Dropping all tables
+    const tableDroptScripts = options.dropTableScriptsFn && options.dropTableScriptsFn();
+    if (tableDroptScripts && currDbVersion > 0) {
+        tableDroptScripts.forEach(callback);
+    }
+
+    // Creating all tables
+    const tableCreateScripts = options.createTableScriptsFn && options.createTableScriptsFn();
+    if (tableCreateScripts) {
+        tableCreateScripts.forEach(callback);
+    }
 }
 
 
@@ -176,3 +229,17 @@ type ExecutorType = (subscribers: Array<mapCallbackType | reduceSubscribersType>
 type mapCallbackType = (row: any, index: number) => any;
 type reduceCallbackType = (accumulator: any, row: any, index: number) => any;
 type reduceSubscribersType = { callback: reduceCallbackType, initialValue?: any };
+
+export enum FIELD_TYPE {
+   NULL     = 0,
+   INTEGER  = 1,
+   FLOAT    = 2,
+   STRING   = 3,
+   BLOB     = 4
+}
+
+export function readDbValue(fieldType: FIELD_TYPE, index: number, callback: (i: number, type: FIELD_TYPE) => string | Array<number>) {
+    return parseToJsValue(
+        callback(index, fieldType)
+    );
+}

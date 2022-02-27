@@ -1,80 +1,81 @@
-"use strict";
-function __export(m) {
-    for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
-}
-Object.defineProperty(exports, "__esModule", { value: true });
-var app = require("tns-core-modules/application");
-var sqlite_access_common_1 = require("./sqlite-access.common");
-var _db;
-var _dataReturnedType;
-var SqliteAccess = (function () {
-    function SqliteAccess(db, returnType) {
-        _db = db;
-        _dataReturnedType = returnType;
+import { Application } from "@nativescript/core";
+import { parseToDbValue, ExtendedPromise, runInitialDbScript, readDbValue } from './sqlite-access.common';
+class SqliteAccess {
+    constructor(db, returnType) {
+        this.db = db;
+        this.returnType = returnType;
     }
-    SqliteAccess.prototype.insert = function (table, values) {
-        return _db.insert(table, null, __mapToContentValues(values));
-    };
-    SqliteAccess.prototype.replace = function (table, values) {
-        return _db.replace(table, null, __mapToContentValues(values));
-    };
-    SqliteAccess.prototype.update = function (table, values, whereClause, whereArs) {
-        console.log(__objectArrayToStringArray(whereArs));
-        return _db.update(table, __mapToContentValues(values), whereClause, __objectArrayToStringArray(whereArs));
-    };
-    SqliteAccess.prototype.delete = function (table, whereClause, whereArgs) {
-        return _db.delete(table, whereClause, __objectArrayToStringArray(whereArgs));
-    };
-    SqliteAccess.prototype.select = function (sql, params) {
-        return new sqlite_access_common_1.ExtendedPromise(function (subscribers, resolve, reject) {
+    insert(table, values) {
+        return this.db.insert(table, null, __mapToContentValues(values));
+    }
+    replace(table, values) {
+        return this.db.replace(table, null, __mapToContentValues(values));
+    }
+    update(table, values, whereClause, whereArs) {
+        return this.db.update(table, __mapToContentValues(values), whereClause, __objectArrayToStringArray(whereArs));
+    }
+    delete(table, whereClause, whereArgs) {
+        return this.db.delete(table, whereClause, __objectArrayToStringArray(whereArgs));
+    }
+    select(sql, params) {
+        return new ExtendedPromise((subscribers, resolve, reject) => {
             try {
-                var cursor = _db.rawQuery(sql, __objectArrayToStringArray(params));
-                var result = __processCursor(cursor, _dataReturnedType, subscribers.shift());
+                const cursor = this.db.rawQuery(sql, __objectArrayToStringArray(params));
+                const result = __processCursor(cursor, this.returnType, subscribers.shift());
                 resolve(result);
             }
             catch (ex) {
                 reject(ex);
             }
         });
-    };
-    SqliteAccess.prototype.query = function (table, columns, selection, selectionArgs, groupBy, orderBy, limit) {
-        return new sqlite_access_common_1.ExtendedPromise(function (subscribers, resolve, error) {
-            var cursor = _db.query(table, columns, selection, __objectArrayToStringArray(selectionArgs), groupBy, orderBy, limit);
+    }
+    selectAsCursor(sql, params) {
+        return __processCursorReturnGenerator(this.db.rawQuery(sql, __objectArrayToStringArray(params)), this.returnType);
+    }
+    query(param) {
+        return new ExtendedPromise((subscribers, resolve, error) => {
             try {
-                var result = __processCursor(cursor, _dataReturnedType, subscribers.shift());
+                const cursor = this.db.query(param.tableName, param.columns, param.selection, __objectArrayToStringArray(param.selectionArgs), param.groupBy, param.orderBy, param.limit);
+                const result = __processCursor(cursor, this.returnType, subscribers.shift());
                 resolve(result);
             }
             catch (ex) {
                 error(ex);
             }
         });
-    };
-    SqliteAccess.prototype.execSQL = function (sql) {
-        _db.execSQL(sql);
-    };
-    SqliteAccess.prototype.beginTransact = function () {
-        _db.beginTransaction();
-    };
-    SqliteAccess.prototype.commit = function () {
-        _db.setTransactionSuccessful();
-        _db.endTransaction();
-    };
-    SqliteAccess.prototype.rollback = function () {
-        _db.endTransaction();
-    };
-    SqliteAccess.prototype.close = function () {
-        if (_db === null) {
+    }
+    queryAsCursor(param) {
+        const cursor = this.db.query(param.tableName, param.columns, param.selection, __objectArrayToStringArray(param.selectionArgs), param.groupBy, param.orderBy, param.limit);
+        return __processCursorReturnGenerator(cursor, this.returnType);
+    }
+    execSQL(sql) {
+        this.db.execSQL(sql);
+    }
+    beginTransact() {
+        this.db.beginTransaction();
+    }
+    commit() {
+        this.db.setTransactionSuccessful();
+        this.db.endTransaction();
+    }
+    rollback() {
+        this.db.endTransaction();
+    }
+    close() {
+        if (this.db === null) {
             return;
         }
-        _db.close();
-        _db = null;
-    };
-    return SqliteAccess;
-}());
+        this.db.close();
+        this.db = null;
+    }
+    isClose() {
+        return this.db === null;
+    }
+}
 function __processCursor(cursor, returnType, reduceOrMapSub) {
-    var result = reduceOrMapSub && reduceOrMapSub.initialValue || [];
+    let result = (reduceOrMapSub && reduceOrMapSub.initialValue) || [];
     if (cursor.getCount() > 0) {
-        var dbValue = null;
+        let dbValue = null;
         while (cursor.moveToNext()) {
             dbValue = __getRowValues(cursor, returnType);
             if (reduceOrMapSub) {
@@ -90,40 +91,25 @@ function __processCursor(cursor, returnType, reduceOrMapSub) {
     cursor.close();
     return result;
 }
-function __getRowValues(cursor, returnType) {
-    var rowValue = {};
-    if (returnType === 1) {
-        rowValue = [];
-    }
-    var primitiveType = null;
-    var columnName = '';
-    var value = null;
-    var columnCount = cursor.getColumnCount();
-    for (var i = 0; i < columnCount; i++) {
-        primitiveType = cursor.getType(i);
-        columnName = cursor.getColumnName(i);
-        switch (primitiveType) {
-            case android.database.Cursor.FIELD_TYPE_INTEGER:
-                value = cursor.getLong(i);
-                break;
-            case android.database.Cursor.FIELD_TYPE_FLOAT:
-                value = Number(cursor.getString(i));
-                break;
-            case android.database.Cursor.FIELD_TYPE_STRING:
-                value = cursor.getString(i);
-                value = sqlite_access_common_1.parseToJsValue(value);
-                break;
-            case android.database.Cursor.FIELD_TYPE_BLOB:
-                continue;
-            case android.database.Cursor.FIELD_TYPE_NULL:
-                value = null;
-                break;
+function* __processCursorReturnGenerator(cursor, returnType) {
+    if (cursor.getCount() > 0) {
+        while (cursor.moveToNext()) {
+            yield __getRowValues(cursor, returnType);
         }
-        if (Array.isArray(rowValue) && returnType === 1) {
+    }
+    cursor.close();
+}
+function __getRowValues(cursor, returnType) {
+    const rowValue = returnType === 1 ? [] : {};
+    const columnCount = cursor.getColumnCount();
+    const fn = (col) => cursor.getString(col);
+    for (let i = 0; i < columnCount; i++) {
+        const value = readDbValue(cursor.getType(i), i, fn);
+        if (returnType === 1) {
             rowValue.push(value);
             continue;
         }
-        rowValue[columnName] = value;
+        rowValue[cursor.getColumnName(i)] = value;
     }
     return rowValue;
 }
@@ -131,7 +117,7 @@ function __openCreateDataBase(dbName, mode) {
     if (dbName === ":memory:") {
         return android.database.sqlite.SQLiteDatabase.create(null);
     }
-    var file = __getContext().getDatabasePath(dbName);
+    const file = __getContext().getDatabasePath(dbName);
     if (!file.exists()) {
         file.getParentFile().mkdirs();
         file.getParentFile().setReadable(true);
@@ -143,10 +129,10 @@ function __openCreateDataBase(dbName, mode) {
 function __objectArrayToStringArray(params) {
     if (!params)
         return null;
-    var stringArray = [];
-    var value = null;
-    for (var i = 0, len = params.length; i < len; i++) {
-        value = sqlite_access_common_1.parseToDbValue(params[i]);
+    let stringArray = [];
+    let value = null;
+    for (let i = 0, len = params.length; i < len; i++) {
+        value = parseToDbValue(params[i]);
         if (value === null) {
             stringArray.push(value);
             continue;
@@ -156,11 +142,11 @@ function __objectArrayToStringArray(params) {
     return stringArray;
 }
 function __mapToContentValues(values) {
-    var contentValues = new android.content.ContentValues();
-    var value = null;
-    for (var key in values) {
+    let contentValues = new android.content.ContentValues();
+    let value = null;
+    for (const key in values) {
         if (values.hasOwnProperty(key)) {
-            value = sqlite_access_common_1.parseToDbValue(values[key]);
+            value = parseToDbValue(values[key]);
             if (value === null) {
                 contentValues.putNull(key);
                 continue;
@@ -171,47 +157,30 @@ function __mapToContentValues(values) {
     return contentValues;
 }
 function __getContext() {
-    return (app.android.context
-        || (app.getNativeApplication && app.getNativeApplication()));
+    return (Application.android.context
+        || (Application.getNativeApplication && Application.getNativeApplication()));
 }
-function DbBuilder(dbName, options) {
+export function DbBuilder(dbName, options) {
     if (!dbName)
         throw "Must specify a db name";
-    options = options || {
-        version: 1
-    };
-    options.version = options.version || 1;
-    options.returnType = options.returnType || 0;
-    var db = __openCreateDataBase(dbName, android.database.sqlite.SQLiteDatabase.OPEN_READWRITE);
-    var curVersion = db.getVersion();
-    if (options.version > curVersion) {
-        db.setVersion(options.version);
-        var tableCreateScripts = options.createTableScriptsFn && options.createTableScriptsFn();
-        var tableDroptScripts = options.dropTableScriptsFn && options.dropTableScriptsFn();
-        try {
-            if (tableDroptScripts && curVersion > 0) {
-                for (var script in tableDroptScripts) {
-                    db.execSQL(tableDroptScripts[script]);
-                }
-            }
-            if (tableCreateScripts) {
-                for (var script in tableCreateScripts) {
-                    db.execSQL(tableCreateScripts[script]);
-                }
-            }
-        }
-        catch (error) {
-            db.setVersion(curVersion);
-            db.close();
-            throw error;
+    options = Object.assign({
+        version: 1,
+        returnType: 0
+    }, options);
+    const db = __openCreateDataBase(dbName, android.database.sqlite.SQLiteDatabase.OPEN_READWRITE);
+    const curVersion = db.getVersion();
+    try {
+        if (options.version !== curVersion) {
+            db.setVersion(options.version);
+            runInitialDbScript(curVersion, options, (script) => db.execSQL(script));
         }
     }
-    else if (options.version < curVersion) {
+    catch (error) {
+        db.setVersion(curVersion);
         db.close();
-        throw "It is not possible to set the version " + options.version + " to database, because is lower then current version, Db current version is " + curVersion;
+        throw error;
     }
     return new SqliteAccess(db, options.returnType);
 }
-exports.DbBuilder = DbBuilder;
-__export(require("./sqlite-access.common"));
+export * from "./sqlite-access.common";
 //# sourceMappingURL=sqlite-access.android.js.map

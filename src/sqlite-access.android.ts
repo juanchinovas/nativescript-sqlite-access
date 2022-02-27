@@ -1,25 +1,25 @@
 import { Application } from "@nativescript/core";
-import { DbCreationOptions, ReturnType, IDatabase, parseToDbValue, parseToJsValue, ExtendedPromise } from './sqlite-access.common';
-
-// Super private variables
-let _db: android.database.sqlite.SQLiteDatabase;
-let _dataReturnedType: ReturnType;
+import {
+    DbCreationOptions,
+    ReturnType,
+    IDatabase,
+    parseToDbValue,
+    ExtendedPromise,
+    runInitialDbScript,
+    readDbValue
+} from './sqlite-access.common';
 
 /**
  * This class allow you to connect to sqlite database on Android
  */
 
 class SqliteAccess implements IDatabase {
-
     /**
      * Default constructor
      * @param db android.database.sqlite.SQLiteDatabase
      * @param returnType ReturnType
      */
-    constructor(db: android.database.sqlite.SQLiteDatabase, returnType: ReturnType) {
-        _db = db;
-        _dataReturnedType = returnType;
-    }
+    constructor(private db: android.database.sqlite.SQLiteDatabase, private returnType: ReturnType) {}
 
     /**
      * Insert a row into table with the values (key = columns and values = columns value)
@@ -30,7 +30,7 @@ class SqliteAccess implements IDatabase {
      * @returns {number}  id inserted
      */
     insert(table: string, values: { [key: string]: any; }): number {
-        return _db.insert(table, null, __mapToContentValues(values));
+        return this.db.insert(table, null, __mapToContentValues(values));
     }
 
     /**
@@ -43,7 +43,7 @@ class SqliteAccess implements IDatabase {
      * @returns {number} rows affected
      */
     replace(table: string, values: { [key: string]: any; }): number {
-        return _db.replace(table, null, __mapToContentValues(values));
+        return this.db.replace(table, null, __mapToContentValues(values));
     }
 
     /**
@@ -57,8 +57,7 @@ class SqliteAccess implements IDatabase {
      * @returns {number} rows affected
      */
     update(table: string, values: { [key: string]: any; }, whereClause: string, whereArs: any[]): number {
-        console.log( __objectArrayToStringArray(whereArs));
-        return _db.update(table, __mapToContentValues(values), whereClause, __objectArrayToStringArray(whereArs));
+        return this.db.update(table, __mapToContentValues(values), whereClause, __objectArrayToStringArray(whereArs));
     }
 
    /**
@@ -71,7 +70,7 @@ class SqliteAccess implements IDatabase {
      * @returns {number} rows affected
      */
     delete(table: string, whereClause?: string, whereArgs?: any[]): number {
-        return _db.delete(table, whereClause, __objectArrayToStringArray(whereArgs));
+        return this.db.delete(table, whereClause, __objectArrayToStringArray(whereArgs));
     }
 
     /**
@@ -84,15 +83,22 @@ class SqliteAccess implements IDatabase {
      * @returns {ExtendedPromise} ExtendedPromise object that returns a Promise<Array<any>>
      */
     select(sql: string, params?: any[]): ExtendedPromise {
-        return new ExtendedPromise(function(subscribers, resolve, reject) {
+        return new ExtendedPromise((subscribers, resolve, reject) => {
             try {
-                let cursor =  _db.rawQuery(sql, __objectArrayToStringArray(params));
-                const result = __processCursor(cursor, _dataReturnedType, subscribers.shift());
+                const cursor =  this.db.rawQuery(sql, __objectArrayToStringArray(params));
+                const result = __processCursor(cursor, this.returnType, subscribers.shift());
                 resolve(result);
             } catch (ex) {
                 reject(ex);
             }
         });
+    }
+
+    selectAsCursor(sql: string, params?: any[]) {
+        return __processCursorReturnGenerator(
+            this.db.rawQuery(sql, __objectArrayToStringArray(params)),
+            this.returnType
+        );
     }
 
     /**
@@ -109,11 +115,18 @@ class SqliteAccess implements IDatabase {
      *
      * @returns {ExtendedPromise} ExtendedPromise object that returns a Promise<Array<any>>
      */
-    query(table: string, columns?: string[], selection?: string, selectionArgs?: any[], groupBy?: string, orderBy?: string, limit?: string): ExtendedPromise {
-        return new ExtendedPromise(function(subscribers, resolve, error) {
-            let cursor =  _db.query(table, columns, selection, __objectArrayToStringArray(selectionArgs), groupBy, orderBy, limit);
+    query(param: { tableName: string, columns?: string[], selection?: string, selectionArgs?: any[], groupBy?: string, orderBy?: string, limit?: string }): ExtendedPromise {
+        return new ExtendedPromise((subscribers, resolve, error) => {
             try {
-                const result = <Array<any>>__processCursor(cursor, _dataReturnedType, subscribers.shift());
+                const cursor =  this.db.query(
+                    param.tableName,
+                    param.columns,
+                    param.selection,
+                    __objectArrayToStringArray(param.selectionArgs),
+                    param.groupBy,
+                    param.orderBy,
+                    param.limit);
+                const result = <Array<any>>__processCursor(cursor, this.returnType, subscribers.shift());
                 resolve(result);
             } catch (ex) {
                 error(ex);
@@ -121,46 +134,62 @@ class SqliteAccess implements IDatabase {
         });
     }
 
+    queryAsCursor(param: { tableName: string, columns?: string[], selection?: string, selectionArgs?: any[], groupBy?: string, orderBy?: string, limit?: string }) {
+        const cursor =  this.db.query(
+            param.tableName,
+            param.columns,
+            param.selection,
+            __objectArrayToStringArray(param.selectionArgs),
+            param.groupBy,
+            param.orderBy,
+            param.limit);
+        return __processCursorReturnGenerator(cursor, this.returnType);
+    }
+
     /**
      * Execute a SQL script and do not return anything
      * @param sql
      */
     execSQL(sql: string) {
-        _db.execSQL(sql);
+        this.db.execSQL(sql);
     }
 
     /**
      * Open a transaction
      */
     beginTransact() {
-        _db.beginTransaction();
+        this.db.beginTransaction();
     }
 
     /**
      * Commit the transaction
      */
     commit() {
-        _db.setTransactionSuccessful();
-        _db.endTransaction();
+        this.db.setTransactionSuccessful();
+        this.db.endTransaction();
     }
 
     /**
      * Rollback a transaction
      */
     rollback() {
-        _db.endTransaction();
+        this.db.endTransaction();
     }
 
     /**
      * Close the database connection
      */
     close(): void {
-        if (_db === null) { // already closed
+        if (this.db === null) { // already closed
             return;
         }
 
-        _db.close();
-        _db = null;
+        this.db.close();
+        this.db = null;
+    }
+
+    isClose(): boolean {
+        return this.db === null;
     }
 }
 
@@ -172,7 +201,7 @@ class SqliteAccess implements IDatabase {
  * @returns any;
  */
 function __processCursor(cursor: android.database.Cursor, returnType: ReturnType, reduceOrMapSub?: any) {
-    let result: Array<any> | {} = reduceOrMapSub && reduceOrMapSub.initialValue || [];
+    let result: Array<any> | {} = (reduceOrMapSub && reduceOrMapSub.initialValue) || [];
     if (cursor.getCount() > 0) {
         let dbValue = null;
         while ( cursor.moveToNext() ) {
@@ -192,6 +221,15 @@ function __processCursor(cursor: android.database.Cursor, returnType: ReturnType
     return result;
 }
 
+function* __processCursorReturnGenerator(cursor: android.database.Cursor, returnType: ReturnType) {
+    if (cursor.getCount() > 0) {
+        while ( cursor.moveToNext() ) {
+            yield __getRowValues(cursor, returnType);
+        }
+    }
+    cursor.close();
+}
+
 /** private function
  * Process the sqlite cursor and return a
  * js object with column/value or an array row
@@ -202,45 +240,22 @@ function __processCursor(cursor: android.database.Cursor, returnType: ReturnType
  */
 function __getRowValues(cursor: android.database.Cursor, returnType: ReturnType): any {
 
-    let rowValue: any = {};
-    if (returnType === ReturnType.AS_ARRAY) {
-        rowValue = [];
-    }
+    const rowValue: Array<unknown> | Record<string, unknown> = returnType === ReturnType.AS_ARRAY ?  [] : {};
+    const columnCount: number = cursor.getColumnCount();
+    const fn = (col: number) => cursor.getString(col);
 
-    let primitiveType = null;
-    let columnName = '';
-    let value = null;
-    let columnCount: number = cursor.getColumnCount();
     for (let i = 0; i < columnCount; i++) {
-        primitiveType = cursor.getType(i);
-        columnName = cursor.getColumnName(i);
-        switch (primitiveType) {
-            case android.database.Cursor.FIELD_TYPE_INTEGER:
-                value = cursor.getLong(i);
-                break;
-            case android.database.Cursor.FIELD_TYPE_FLOAT:
-                value = Number(cursor.getString(i));
-                break;
-            case android.database.Cursor.FIELD_TYPE_STRING:
-                value = cursor.getString(i);
-                value = parseToJsValue(value);
-                break;
-            case android.database.Cursor.FIELD_TYPE_BLOB:
-                // uncomment the code below if you wanna use it and change continue for break
-                // value = cursor.getBlob(i);
-                continue;
-            case android.database.Cursor.FIELD_TYPE_NULL:
-                value = null;
-                break;
-        }
+        const value = readDbValue(cursor.getType(i), i, fn);
+
         // If result wanted as array of array
-        if (Array.isArray(rowValue) && returnType === ReturnType.AS_ARRAY) {
-            rowValue.push(value);
+        if (returnType === ReturnType.AS_ARRAY) {
+            (rowValue as Array<unknown>).push(value);
             continue;
         }
 
-        rowValue[columnName] = value;
+        rowValue[cursor.getColumnName(i)] = value;
     }
+
     return rowValue;
 }
 
@@ -272,7 +287,7 @@ function __openCreateDataBase(dbName: string, mode: number): android.database.sq
  * @param params Array<any> sql queries params
  * @returns Array<string>
  */
-function __objectArrayToStringArray(params: Array<any>) {
+function __objectArrayToStringArray(params: Array<unknown>) {
     if (!params) return null;
 
     let stringArray: Array<string> = [];
@@ -293,7 +308,7 @@ function __objectArrayToStringArray(params: Array<any>) {
  * @param values { [key: string]: any; }
  * @returns android.content.ContentValues
  */
-function __mapToContentValues(values: { [key: string]: any; }) {
+function __mapToContentValues(values: { [key: string]: unknown; }) {
     let contentValues = new android.content.ContentValues();
     let value = null;
     for (const key in values) {
@@ -333,43 +348,26 @@ function __getContext() {
 export function DbBuilder(dbName: string, options?: DbCreationOptions): SqliteAccess {
     if (!dbName) throw "Must specify a db name";
 
-    options = options || {
-        version: 1
-    };
-    // Ensure version be 1 or greater and returnType AS_OBJECT
-    options.version = options.version || 1;
-    options.returnType = options.returnType || ReturnType.AS_OBJECT;
+    // Make sure version be 1 or greater and returnType AS_OBJECT
+    options = Object.assign({
+        version: 1,
+        returnType: ReturnType.AS_OBJECT
+    }, options);
 
     const db = __openCreateDataBase(dbName, android.database.sqlite.SQLiteDatabase.OPEN_READWRITE);
     const curVersion = db.getVersion();
-    if (options.version > curVersion) {
-        db.setVersion(options.version);
-        const tableCreateScripts = options.createTableScriptsFn && options.createTableScriptsFn();
-        const tableDroptScripts = options.dropTableScriptsFn && options.dropTableScriptsFn();
 
-        try {
-            // Dropping all tables
-            if (tableDroptScripts && curVersion > 0) {
-                for (let script in tableDroptScripts) {
-                    db.execSQL(tableDroptScripts[script]);
-                }
-            }
-            // Creating all tables
-            if (tableCreateScripts) {
-                for (let script in tableCreateScripts) {
-                    db.execSQL(tableCreateScripts[script]);
-                }
-            }
-        } catch (error) {
-            db.setVersion(curVersion);
-            db.close();
-            throw error;
+    try {
+        if (options.version !== curVersion) {
+            db.setVersion(options.version);
+            runInitialDbScript(curVersion, options, (script) => db.execSQL(script));
         }
-
-    } else if (options.version < curVersion) {
+    } catch (error) {
+        db.setVersion(curVersion);
         db.close();
-        throw `It is not possible to set the version ${options.version} to database, because is lower then current version, Db current version is ${curVersion}`;
+        throw error;
     }
+
     return new SqliteAccess(db, options.returnType);
 }
 

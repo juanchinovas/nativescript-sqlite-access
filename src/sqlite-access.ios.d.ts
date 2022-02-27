@@ -1,5 +1,7 @@
 import { DbCreationOptions, ReturnType, IDatabase, ExtendedPromise } from './sqlite-access.common';
 declare class SqliteAccess implements IDatabase {
+    private db;
+    private returnType;
     constructor(db: interop.Reference<any>, returnType: ReturnType);
     insert(tableName: string, values: {
         [key: string]: any;
@@ -12,12 +14,31 @@ declare class SqliteAccess implements IDatabase {
     }, whereClause: string, whereArs: any[]): number;
     delete(tableName: string, whereClause?: string, whereArgs?: any[]): number;
     select(sql: string, conditionParams?: any[]): ExtendedPromise;
-    query(tableName: string, columns?: string[], selection?: string, selectionArgs?: any[], groupBy?: string, orderBy?: string, limit?: string): ExtendedPromise;
+    selectAsCursor(sql: string, conditionParams?: any[]): Generator<any, void, unknown>;
+    query(param: {
+        tableName: string;
+        columns?: string[];
+        selection?: string;
+        selectionArgs?: any[];
+        groupBy?: string;
+        orderBy?: string;
+        limit?: string;
+    }): ExtendedPromise;
+    queryAsCursor(param: {
+        tableName: string;
+        columns?: string[];
+        selection?: string;
+        selectionArgs?: any[];
+        groupBy?: string;
+        orderBy?: string;
+        limit?: string;
+    }): Generator<any, void, unknown>;
     execSQL(sql: string): void;
     beginTransact(): void;
     commit(): void;
     rollback(): void;
     close(): void;
+    isClose(): boolean;
 }
 export declare function DbBuilder(dbName: string, options?: DbCreationOptions): SqliteAccess;
 export * from "./sqlite-access.common";

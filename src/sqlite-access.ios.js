@@ -1,97 +1,94 @@
-"use strict";
-function __export(m) {
-    for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
-}
-Object.defineProperty(exports, "__esModule", { value: true });
-var fs = require("tns-core-modules/file-system");
-var sqlite_access_common_1 = require("./sqlite-access.common");
-var _db;
-var _dataReturnedType;
-var SqliteAccess = (function () {
-    function SqliteAccess(db, returnType) {
-        _db = db;
-        _dataReturnedType = returnType;
+import { knownFolders } from "@nativescript/core/file-system";
+import { parseToDbValue, ExtendedPromise, runInitialDbScript, readDbValue } from './sqlite-access.common';
+class SqliteAccess {
+    constructor(db, returnType) {
+        this.db = db;
+        this.returnType = returnType;
     }
-    SqliteAccess.prototype.insert = function (tableName, values) {
-        this.execSQL("INSERT INTO " + tableName + " (" + Object.keys(values).join(",") + ") VALUES(" + __mapToAddOrUpdateValues(values, true) + ")");
-        var value = sqlite3_last_insert_rowid(_db.value);
+    insert(tableName, values) {
+        this.execSQL(`INSERT INTO ${tableName} (${Object.keys(values).join(",")}) VALUES(${__mapToAddOrUpdateValues(values, true)})`);
+        let value = sqlite3_last_insert_rowid(this.db.value);
         return Number(value);
-    };
-    SqliteAccess.prototype.replace = function (tableName, values) {
-        this.execSQL("REPLACE INTO " + tableName + " (" + Object.keys(values).join(",") + ") VALUES(" + __mapToAddOrUpdateValues(values, true) + ")");
-        var value = sqlite3_changes(_db.value);
+    }
+    replace(tableName, values) {
+        this.execSQL(`REPLACE INTO ${tableName} (${Object.keys(values).join(",")}) VALUES(${__mapToAddOrUpdateValues(values, true)})`);
+        let value = sqlite3_changes(this.db.value);
         return Number(value);
-    };
-    SqliteAccess.prototype.update = function (tableName, values, whereClause, whereArs) {
+    }
+    update(tableName, values, whereClause, whereArs) {
         whereClause = whereClause && "WHERE " + whereClause.replace(/\?/g, __replaceQuestionMarkForParams(whereArs)) || "";
-        this.execSQL("UPDATE " + tableName + " SET " + __mapToAddOrUpdateValues(values, false) + " " + whereClause);
-        var value = sqlite3_changes(_db.value);
+        this.execSQL(`UPDATE ${tableName} SET ${__mapToAddOrUpdateValues(values, false)} ${whereClause}`);
+        let value = sqlite3_changes(this.db.value);
         return Number(value);
-    };
-    SqliteAccess.prototype.delete = function (tableName, whereClause, whereArgs) {
+    }
+    delete(tableName, whereClause, whereArgs) {
         whereClause = whereClause && "WHERE " + whereClause.replace(/\?/g, __replaceQuestionMarkForParams(whereArgs)) || "";
-        this.execSQL("DELETE FROM " + tableName + " " + whereClause);
-        var value = sqlite3_changes(_db.value);
+        this.execSQL(`DELETE FROM ${tableName} ${whereClause}`);
+        let value = sqlite3_changes(this.db.value);
         return Number(value);
-    };
-    SqliteAccess.prototype.select = function (sql, conditionParams) {
-        return new sqlite_access_common_1.ExtendedPromise(function (subscribers, resolve, error) {
+    }
+    select(sql, conditionParams) {
+        return new ExtendedPromise((subscribers, resolve, error) => {
             try {
                 sql = sql.replace(/\?/g, __replaceQuestionMarkForParams(conditionParams));
-                var cursor = __execQueryAndReturnStatement(sql, _db);
-                var result = __processCursor(cursor, _dataReturnedType, subscribers.shift());
+                const cursor = __execQueryAndReturnStatement(sql, this.db);
+                const result = __processCursor(cursor, this.returnType, subscribers.shift());
                 resolve(result);
             }
             catch (ex) {
                 error(ex);
             }
         });
-    };
-    SqliteAccess.prototype.query = function (tableName, columns, selection, selectionArgs, groupBy, orderBy, limit) {
-        selection = selection && "WHERE " + selection.replace(/\?/g, __replaceQuestionMarkForParams(selectionArgs)) || "";
-        groupBy = groupBy && "GROUP BY " + groupBy || "";
-        orderBy = orderBy && "ORDER BY " + orderBy || "";
-        limit = limit && "LIMIT " + limit || "";
-        var _columns = columns && columns.join(',') || tableName + ".*";
-        var query = "SELECT " + _columns + " FROM " + tableName + " " + selection + " " + groupBy + " " + orderBy + " " + limit;
-        return new sqlite_access_common_1.ExtendedPromise(function (subscribers, resolve, error) {
+    }
+    selectAsCursor(sql, conditionParams) {
+        const cursor = __execQueryAndReturnStatement(sql.replace(/\?/g, __replaceQuestionMarkForParams(conditionParams)), this.db);
+        return __processCursorReturnGenerator(cursor, this.returnType);
+    }
+    query(param) {
+        return new ExtendedPromise((subscribers, resolve, error) => {
             try {
-                var cursor = __execQueryAndReturnStatement(query, _db);
-                var result = __processCursor(cursor, _dataReturnedType, subscribers.shift());
+                const cursor = __execQueryAndReturnStatement(__assembleScript(param), this.db);
+                const result = __processCursor(cursor, this.returnType, subscribers.shift());
                 resolve(result);
             }
             catch (ex) {
-                error("ErrCode:" + ex);
+                error(`ErrCode:${ex}`);
             }
         });
-    };
-    SqliteAccess.prototype.execSQL = function (sql) {
-        var cursorRef;
-        cursorRef = __execQueryAndReturnStatement(sql, _db);
+    }
+    queryAsCursor(param) {
+        const cursor = __execQueryAndReturnStatement(__assembleScript(param), this.db);
+        return __processCursorReturnGenerator(cursor, this.returnType);
+    }
+    execSQL(sql) {
+        let cursorRef;
+        cursorRef = __execQueryAndReturnStatement(sql, this.db);
         sqlite3_finalize(cursorRef.value);
-    };
-    SqliteAccess.prototype.beginTransact = function () {
+    }
+    beginTransact() {
         this.execSQL("BEGIN TRANSACTION");
-    };
-    SqliteAccess.prototype.commit = function () {
+    }
+    commit() {
         this.execSQL("COMMIT TRANSACTION");
-    };
-    SqliteAccess.prototype.rollback = function () {
+    }
+    rollback() {
         this.execSQL("ROLLBACK TRANSACTION");
-    };
-    SqliteAccess.prototype.close = function () {
-        if (_db === null) {
+    }
+    close() {
+        if (this.db === null) {
             return;
         }
-        sqlite3_close(_db.value);
-        _db = null;
-    };
-    return SqliteAccess;
-}());
+        sqlite3_close(this.db.value);
+        this.db = null;
+    }
+    isClose() {
+        return this.db === null;
+    }
+}
 function __execQueryAndReturnStatement(sql, dbPointer) {
-    var cursorRef = new interop.Reference();
-    var resultCode = sqlite3_prepare_v2(dbPointer.value, sql, -1, cursorRef, null);
-    var applyStatementCode = sqlite3_step(cursorRef.value);
+    let cursorRef = new interop.Reference();
+    let resultCode = sqlite3_prepare_v2(dbPointer.value, sql, -1, cursorRef, null);
+    let applyStatementCode = sqlite3_step(cursorRef.value);
     if (resultCode !== 0 || (applyStatementCode !== 101 && applyStatementCode !== 100)) {
         sqlite3_finalize(cursorRef.value);
         cursorRef.value = null;
@@ -100,17 +97,25 @@ function __execQueryAndReturnStatement(sql, dbPointer) {
     }
     return cursorRef.value;
 }
+function __assembleScript(param) {
+    param.selection = param.selection && "WHERE " + param.selection.replace(/\?/g, __replaceQuestionMarkForParams(param.selectionArgs)) || "";
+    param.groupBy = param.groupBy && "GROUP BY " + param.groupBy || "";
+    param.orderBy = param.orderBy && "ORDER BY " + param.orderBy || "";
+    param.limit = param.limit && "LIMIT " + param.limit || "";
+    const _columns = param.columns && param.columns.join(',') || `${param.tableName}.*`;
+    return `SELECT ${_columns} FROM ${param.tableName} ${param.selection} ${param.groupBy} ${param.orderBy} ${param.limit}`;
+}
 function __replaceQuestionMarkForParams(whereParams) {
-    var counter = 0;
-    return function () {
-        return sqlite_access_common_1.parseToDbValue(whereParams[counter++]);
+    let counter = 0;
+    return () => {
+        return parseToDbValue(whereParams[counter++]);
     };
 }
 function __processCursor(cursorRef, returnType, reduceOrMapSub) {
-    var result = reduceOrMapSub && reduceOrMapSub.initialValue || [];
-    var dbValue = null, hasData = sqlite3_data_count(cursorRef) > 0;
-    if (hasData) {
-        var counter = 0;
+    let result = (reduceOrMapSub && reduceOrMapSub.initialValue) || [];
+    let dbValue = null;
+    if (sqlite3_data_count(cursorRef) > 0) {
+        let counter = 0;
         do {
             dbValue = __getRowValues(cursorRef, returnType);
             if (reduceOrMapSub) {
@@ -126,129 +131,98 @@ function __processCursor(cursorRef, returnType, reduceOrMapSub) {
     sqlite3_finalize(cursorRef);
     return result;
 }
-function __getRowValues(cursor, returnType) {
-    var rowValue = {};
-    if (returnType === 1) {
-        rowValue = [];
+function* __processCursorReturnGenerator(cursorRef, returnType) {
+    if (sqlite3_data_count(cursorRef) > 0) {
+        do {
+            yield __getRowValues(cursorRef, returnType);
+        } while (sqlite3_step(cursorRef) === 100);
     }
-    var primitiveType = null;
-    var columnName = '';
-    var value = null;
-    var columnCount = sqlite3_column_count(cursor);
-    for (var i = 0; i < columnCount; i++) {
-        primitiveType = sqlite3_column_type(cursor, i);
-        columnName = sqlite3_column_name(cursor, i);
-        columnName = NSString.stringWithUTF8String(columnName).toString();
-        switch (primitiveType) {
-            case 1:
-                value = sqlite3_column_int64(cursor, i);
-                break;
-            case 2:
-                value = sqlite3_column_double(cursor, i);
-                break;
-            case 3:
-                value = sqlite3_column_text(cursor, i);
-                value = NSString.stringWithUTF8String(value).toString();
-                value = sqlite_access_common_1.parseToJsValue(value);
-                break;
-            case 4:
-                continue;
-            case 5:
-                value = null;
-                break;
-        }
-        if (Array.isArray(rowValue) && returnType === 1) {
+    sqlite3_finalize(cursorRef);
+}
+function __getRowValues(cursor, returnType) {
+    const rowValue = returnType === 1 ? [] : {};
+    const columnCount = sqlite3_column_count(cursor);
+    const fn = (col) => {
+        return NSString.stringWithUTF8String(sqlite3_column_text(cursor, col)).toString();
+    };
+    for (let i = 0; i < columnCount; i++) {
+        const value = readDbValue(sqlite3_column_type(cursor, i), i, fn);
+        if (returnType === 1) {
             rowValue.push(value);
             continue;
         }
+        let columnName = sqlite3_column_name(cursor, i);
+        columnName = NSString.stringWithUTF8String(columnName).toString();
         rowValue[columnName] = value;
     }
     return rowValue;
 }
 function __openCreateDataBase(dbName, mode) {
-    var dbInstance = new interop.Reference();
-    var resultCode = 0;
+    const dbInstance = new interop.Reference();
+    let resultCode = 0;
     if (dbName === ":memory:") {
         resultCode = sqlite3_open_v2(dbName, dbInstance, mode | 296, null);
     }
     else {
-        dbName = fs.knownFolders.documents().path + "/" + dbName;
+        dbName = `${knownFolders.documents().path}/${dbName}`;
         mode = mode | 4;
         resultCode = sqlite3_open_v2(dbName, dbInstance, mode, null);
     }
     if (resultCode !== 0) {
-        throw "Could not open database. sqlite error code " + resultCode;
+        throw `Could not open database. sqlite error code ${resultCode}`;
     }
     return dbInstance;
 }
 function __mapToAddOrUpdateValues(values, inserting) {
-    if (inserting === void 0) { inserting = true; }
-    var contentValues = [];
-    for (var key in values) {
+    let contentValues = [];
+    for (const key in values) {
         if (values.hasOwnProperty(key)) {
-            var value = sqlite_access_common_1.parseToDbValue(values[key]);
-            value = value === null ? 'null' : value;
-            contentValues.push(inserting ? value : key + "=" + value);
+            let value = parseToDbValue(values[key]);
+            contentValues.push(inserting ? value : `${key}=${value}`);
         }
     }
     return contentValues.join(",");
 }
-function DbBuilder(dbName, options) {
+export function DbBuilder(dbName, options) {
     if (!dbName)
         throw "Must specify a db name";
-    options = options || ({
-        version: 1
-    });
-    options.version = options.version || 1;
-    options.returnType = options.returnType || 0;
-    var db = __openCreateDataBase(dbName, 2);
-    var currVersion = __dbVersion(db);
-    if (options.version > currVersion) {
-        __dbVersion(db, options.version);
-        var tableCreateScripts = options.createTableScriptsFn && options.createTableScriptsFn();
-        var tableDroptScripts = options.dropTableScriptsFn && options.dropTableScriptsFn();
-        try {
-            if (tableDroptScripts && currVersion > 0) {
-                for (var script in tableDroptScripts) {
-                    var cursorRef = __execQueryAndReturnStatement(tableDroptScripts[script], db);
-                    sqlite3_finalize(cursorRef);
-                }
-            }
-            if (tableCreateScripts) {
-                for (var script in tableCreateScripts) {
-                    var cursorRef = __execQueryAndReturnStatement(tableCreateScripts[script], db);
-                    sqlite3_finalize(cursorRef);
-                }
-            }
-        }
-        catch (error) {
-            __dbVersion(db, currVersion);
-            sqlite3_close(db);
-            throw error;
+    options = Object.assign({
+        version: 1,
+        returnType: 0
+    }, options);
+    const db = __openCreateDataBase(dbName, 2);
+    const currVersion = __dbVersion(db);
+    try {
+        if (options.version !== currVersion) {
+            __dbVersion(db, options.version);
+            runInitialDbScript(currVersion, options, (script) => {
+                const cursorRef = __execQueryAndReturnStatement(script, db);
+                sqlite3_finalize(cursorRef);
+            });
         }
     }
-    else if (options.version < currVersion) {
+    catch (error) {
+        __dbVersion(db, currVersion);
         sqlite3_close(db);
-        throw "It is not possible to set the version " + options.version + " to database, because is lower then current version, Db current version is " + currVersion;
+        throw error;
     }
     return new SqliteAccess(db, options.returnType);
 }
-exports.DbBuilder = DbBuilder;
 function __dbVersion(db, version) {
-    var sql = "PRAGMA user_version";
+    let sql = "PRAGMA user_version";
     if (isNaN(version)) {
         version = __execQueryReturnOneArrayRow(db, sql).pop();
     }
     else {
-        var cursorRef = __execQueryAndReturnStatement(sql + "=" + version, db);
+        const cursorRef = __execQueryAndReturnStatement(`${sql}=${version}`, db);
         sqlite3_finalize(cursorRef);
     }
     return version;
 }
 function __execQueryReturnOneArrayRow(db, query) {
-    var cursorRef = __execQueryAndReturnStatement(query, db);
-    var result = __processCursor(cursorRef, 1);
+    const cursorRef = __execQueryAndReturnStatement(query, db);
+    const result = __processCursor(cursorRef, 1);
     return result.shift();
 }
-__export(require("./sqlite-access.common"));
+export * from "./sqlite-access.common";
 //# sourceMappingURL=sqlite-access.ios.js.map
