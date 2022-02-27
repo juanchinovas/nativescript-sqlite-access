@@ -1,4 +1,4 @@
-import { Observable } from "tns-core-modules/data/observable";
+import { Observable } from "@nativescript/core";
 import {DbBuilder, IDatabase, DbCreationOptions} from 'nativescript-sqlite-access';
 import { databaseName, creationTableQueries, dropTableQueries, databaseTables } from "../db-setting";
 
@@ -65,7 +65,7 @@ export class HomeViewModel extends Observable {
             return next.name;
         };
 
-        this.db.query(databaseTables.PERSONS)
+        this.db.query({ tableName: databaseTables.PERSONS })
         .reduce(reducerFn, {})
         .then(result => {
             console.log("Reducing.: ");
@@ -73,7 +73,7 @@ export class HomeViewModel extends Observable {
         })
         .catch(console.error);
 
-        this.db.query(databaseTables.PERSONS)
+        this.db.query({ tableName: databaseTables.PERSONS })
         .map(mapFn)
         .then(result => {
             console.log("Mapping.: ");

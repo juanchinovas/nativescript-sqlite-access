@@ -32,7 +32,7 @@
             return {
                 db: null,
                 updateCounter: 0,
-                items: [],
+                items: [],cl
                 hint: "Name something here",
                 text: ""
             }
@@ -94,7 +94,7 @@
                     return next.name;
                 };
 
-                this.db.query(databaseTables.PERSONS)
+                this.db.query({ tableName: databaseTables.PERSONS })
                 .reduce(reducerFn, {})
                 .then(result => {
                     console.log("Reducing.: ");
@@ -102,7 +102,7 @@
                 })
                 .catch(console.error);
 
-                this.db.query(databaseTables.PERSONS)
+                this.db.query({ tableName: databaseTables.PERSONS })
                 .map(mapFn)
                 .then(result => {
                     console.log("Mapping.: ");

@@ -1,0 +1,29 @@
+{
+  "description": "NativeScript Application",
+  "license": "SEE LICENSE IN <your-license-filename>",
+  "repository": "<fill-your-repository-here>",
+  "main": "./app/app.ts",
+  "dependencies": {
+    "@nativescript/core": "~8.1.1",
+    "@nativescript/theme": "~3.0.1",
+    "nativescript-sqlite-access": "file:../src"
+  },
+  "devDependencies": {
+    "@nativescript/android": "8.1.1",
+    "@nativescript/types": "~8.1.1",
+    "@nativescript/webpack": "~5.0.0",
+    "@types/karma-chai": "^0.1.2",
+    "@types/mocha": "8.2.2",
+    "chai": "4.3.4",
+    "karma": "6.3.2",
+    "karma-chai": "0.1.0",
+    "karma-mocha": "2.0.1",
+    "karma-nativescript-launcher": "0.4.0",
+    "karma-webpack": "5.0.0",
+    "mocha": "8.3.2",
+    "nativescript-unit-test-runner": "^0.7.1-next-2019-07-19-122824-01",
+    "typescript": "4.3.5"
+  },
+  "gitHead": "803cec054c44c99eaa59cdc267993e6346f6cb3a",
+  "readme": "NativeScript Application"
+}

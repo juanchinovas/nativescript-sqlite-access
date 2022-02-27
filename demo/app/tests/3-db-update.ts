@@ -12,7 +12,7 @@ describe("#update()", function() {
             name: "Facebook is for connect"
         }, "_id=?", [1]);
 
-        database.query(databaseTables.WORK_COMPANIES, ["name"], "_id=?", [1]).process()
+        database.query({ tableName: databaseTables.WORK_COMPANIES, columns: ["name"], selection: "_id=?", selectionArgs:[1] }).process()
         .then(function(results) {
             let result = results.pop();
             done(result.name === "Facebook is for connect");
@@ -28,7 +28,7 @@ describe("#update()", function() {
         }, "_id=?", [1]);
         database.commit();
 
-        database.query(databaseTables.WORK_COMPANIES, ["name"], "_id=?", [1]).process()
+        database.query({ tableName: databaseTables.WORK_COMPANIES, columns: ["name"], selection: "_id=?", selectionArgs:[1] }).process()
         .then(function(results) {
             let result = results.pop();
             done(result.name === "Facebook updated");
@@ -43,7 +43,7 @@ describe("#update()", function() {
         }, "_id=?", [1]);
         database.rollback();
 
-        database.query(databaseTables.WORK_COMPANIES, ["name"], "_id=?", [1]).process()
+        database.query({ tableName: databaseTables.WORK_COMPANIES, columns: ["name"], selection: "_id=?", selectionArgs:[1] }).process()
         .then(function(results) {
             let result = results.pop();
             done(result.name === "Facebook updated");

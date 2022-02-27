@@ -79,7 +79,7 @@ export class HomeComponent implements OnInit {
             return next.name;
         };
 
-        this.db.query(databaseTables.PERSONS)
+        this.db.query({ tableName: databaseTables.PERSONS })
         .reduce(reducerFn, {})
         .then(result => {
             console.log("Reducing.: ");
@@ -87,7 +87,7 @@ export class HomeComponent implements OnInit {
         })
         .catch(console.error);
 
-        this.db.query(databaseTables.PERSONS)
+        this.db.query({ tableName: databaseTables.PERSONS })
         .map(mapFn)
         .then(result => {
             console.log("Mapping.: ");
