@@ -1,6 +1,6 @@
 {
 	"name": "nativescript-sqlite-access",
-	"version": "1.2.1-beta",
+	"version": "1.1.0-beta",
 	"description": "NativeScript plugin to access and manage sqlite data on Android & iOS",
 	"main": "sqlite-access",
 	"typings": "index.d.ts",

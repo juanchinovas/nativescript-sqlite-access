@@ -1,5 +1,5 @@
 import { Application } from "@nativescript/core";
-import { parseToDbValue, ExtendedPromise, runInitialDbScript, readDbValue } from './sqlite-access.common';
+import { parseToDbValue, QueryProcessor, runInitialDbScript, readDbValue } from './sqlite-access.common';
 class SqliteAccess {
     constructor(db, returnType) {
         this.db = db;
@@ -18,11 +18,13 @@ class SqliteAccess {
         return this.db.delete(table, whereClause, __objectArrayToStringArray(whereArgs));
     }
     select(sql, params) {
-        return new ExtendedPromise((subscribers, resolve, reject) => {
+        return new QueryProcessor((transformerAgent, resolve, reject) => {
             try {
                 const cursor = this.db.rawQuery(sql, __objectArrayToStringArray(params));
-                const result = __processCursor(cursor, this.returnType, subscribers.shift());
-                resolve(result);
+                if (transformerAgent && transformerAgent.type === 1) {
+                    return resolve(__processCursorReturnGenerator(cursor, this.returnType, transformerAgent));
+                }
+                resolve(__processCursor(cursor, this.returnType, transformerAgent));
             }
             catch (ex) {
                 reject(ex);
@@ -33,20 +35,18 @@ class SqliteAccess {
         return __processCursorReturnGenerator(this.db.rawQuery(sql, __objectArrayToStringArray(params)), this.returnType);
     }
     query(param) {
-        return new ExtendedPromise((subscribers, resolve, error) => {
+        return new QueryProcessor((transformerAgent, resolve, error) => {
             try {
                 const cursor = this.db.query(param.tableName, param.columns, param.selection, __objectArrayToStringArray(param.selectionArgs), param.groupBy, param.orderBy, param.limit);
-                const result = __processCursor(cursor, this.returnType, subscribers.shift());
-                resolve(result);
+                if (transformerAgent && transformerAgent.type === 1) {
+                    return resolve(__processCursorReturnGenerator(cursor, this.returnType, transformerAgent));
+                }
+                resolve(__processCursor(cursor, this.returnType, transformerAgent));
             }
             catch (ex) {
                 error(ex);
             }
         });
-    }
-    queryAsCursor(param) {
-        const cursor = this.db.query(param.tableName, param.columns, param.selection, __objectArrayToStringArray(param.selectionArgs), param.groupBy, param.orderBy, param.limit);
-        return __processCursorReturnGenerator(cursor, this.returnType);
     }
     execSQL(sql) {
         this.db.execSQL(sql);
@@ -72,18 +72,18 @@ class SqliteAccess {
         return this.db === null;
     }
 }
-function __processCursor(cursor, returnType, reduceOrMapSub) {
-    let result = (reduceOrMapSub && reduceOrMapSub.initialValue) || [];
+function __processCursor(cursor, returnType, transformerAgent) {
+    let result = (transformerAgent && transformerAgent.initialValue) || [];
     if (cursor.getCount() > 0) {
         let dbValue = null;
         while (cursor.moveToNext()) {
             dbValue = __getRowValues(cursor, returnType);
-            if (reduceOrMapSub) {
-                if (reduceOrMapSub.initialValue) {
-                    result = reduceOrMapSub.callback(result, dbValue, cursor.getPosition());
+            if (transformerAgent && transformerAgent.transform) {
+                if (transformerAgent.initialValue) {
+                    result = transformerAgent.transform(result, dbValue, cursor.getPosition());
                     continue;
                 }
-                dbValue = reduceOrMapSub.callback(dbValue, cursor.getPosition());
+                dbValue = transformerAgent.transform(dbValue, cursor.getPosition());
             }
             result.push(dbValue);
         }
@@ -91,10 +91,15 @@ function __processCursor(cursor, returnType, reduceOrMapSub) {
     cursor.close();
     return result;
 }
-function* __processCursorReturnGenerator(cursor, returnType) {
+function* __processCursorReturnGenerator(cursor, returnType, transformerAgent) {
     if (cursor.getCount() > 0) {
         while (cursor.moveToNext()) {
-            yield __getRowValues(cursor, returnType);
+            const row = __getRowValues(cursor, returnType);
+            if (transformerAgent && transformerAgent.transform) {
+                yield transformerAgent.transform(row, cursor.getPosition());
+                continue;
+            }
+            yield row;
         }
     }
     cursor.close();

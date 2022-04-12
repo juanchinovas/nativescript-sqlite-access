@@ -4,9 +4,12 @@ import {
     ReturnType,
     IDatabase,
     parseToDbValue,
-    ExtendedPromise,
+    QueryProcessor,
     runInitialDbScript,
-    readDbValue
+    readDbValue,
+    TransformerType,
+    ReduceCallbackType,
+    MapCallbackType
 } from './sqlite-access.common';
 
 /**
@@ -86,36 +89,32 @@ class SqliteAccess implements IDatabase {
 
     /**
      * Query the table data that matches the condition.
-     * @see ExtendedPromise for more information.
+     * @see QueryProcessor for more information.
      *
      * @param {string} sql SQL Query. `SELECT [COLUMNS,] FROM TABLE WHERE column1=? and column2=?`. WHERE clause can be omitted
      * @param {Array<any>} conditionParams - optional if there is not WHERE clause in the sql param
      *
-     * @returns {ExtendedPromise} ExtendedPromise object that returns a Promise<Array<any>>
+     * @returns {QueryProcessor} QueryProcessor object that returns a Promise<Array<any>>
      */
-    select(sql: string, conditionParams?: any[]): ExtendedPromise {
-        return new ExtendedPromise((subscribers, resolve, error) => {
+    select(sql: string, conditionParams?: any[]): QueryProcessor {
+        return new QueryProcessor((transformerAgent, resolve, error) => {
             try {
                 sql = sql.replace(/\?/g, <any>__replaceQuestionMarkForParams(conditionParams));
                 const cursor = __execQueryAndReturnStatement(sql, this.db);
-                const result = __processCursor(cursor, this.returnType, subscribers.shift());
-                resolve(result);
+                if(transformerAgent && transformerAgent.type === 1 /*Generator*/) {
+                    return resolve(__processCursorReturnGenerator(cursor, this.returnType, transformerAgent));
+                }
+                
+                resolve(__processCursor(cursor, this.returnType, transformerAgent));
             } catch (ex) {
                 error(ex);
             }
         });
     }
 
-    selectAsCursor(sql: string, conditionParams?: any[]) {
-        const cursor = __execQueryAndReturnStatement(
-            sql.replace(/\?/g, <any>__replaceQuestionMarkForParams(conditionParams)),
-            this.db);
-        return __processCursorReturnGenerator(cursor, this.returnType);
-    }
-
     /**
      * Execute a query selector with the params passed in
-     * @see ExtendedPromise for more information.
+     * @see QueryProcessor for more information.
      *
      * @param {string} tableName
      * @param {Array<string>} columns - optional
@@ -125,31 +124,30 @@ class SqliteAccess implements IDatabase {
      * @param {string} orderBy - optional
      * @param {string} limit - optional
      *
-     * @returns {ExtendedPromise} ExtendedPromise object that returns a Promise<Array<any>>
+     * @returns {QueryProcessor} QueryProcessor object that returns a Promise<Array<any>>
      */
-    query(param: {tableName: string, columns?: string[], selection?: string, selectionArgs?: any[], groupBy?: string, orderBy?: string, limit?: string}): ExtendedPromise {
-        return new ExtendedPromise((subscribers, resolve, error) => {
+    query(param: {tableName: string, columns?: string[], selection?: string, selectionArgs?: any[], groupBy?: string, orderBy?: string, limit?: string}): QueryProcessor {
+        return new QueryProcessor((transformerAgent, resolve, error) => {
             try {
                 const cursor =  __execQueryAndReturnStatement(__assembleScript(param), this.db);
-                const result = <Array<any>>__processCursor(cursor, this.returnType, subscribers.shift());
-                resolve(result);
+                if(transformerAgent && transformerAgent.type === 1 /*Generator*/) {
+                    return resolve(__processCursorReturnGenerator(cursor, this.returnType, transformerAgent));
+                }
+                
+                resolve(
+                    __processCursor(cursor, this.returnType, transformerAgent)
+                );
             } catch (ex) {
-                error(`ErrCode:${ex}`);
+                error(ex);
             }
         });
-    }
-
-    queryAsCursor(param: { tableName: string, columns?: string[], selection?: string, selectionArgs?: any[], groupBy?: string, orderBy?: string, limit?: string }) {
-        const cursor =  __execQueryAndReturnStatement(__assembleScript(param), this.db);
-        return __processCursorReturnGenerator(cursor, this.returnType);
     }
     /**
      * Execute a SQL script and do not return anything
      * @param {string} sql
      */
     execSQL(sql: string) {
-        let cursorRef: interop.Reference<any>;
-        cursorRef = __execQueryAndReturnStatement(sql, this.db);
+        const cursorRef: interop.Reference<any> = __execQueryAndReturnStatement(sql, this.db);
         sqlite3_finalize(cursorRef.value);
     }
 
@@ -178,7 +176,7 @@ class SqliteAccess implements IDatabase {
      * Close the database connection
      */
     close(): void {
-        if (this.db === null) {
+        if (this.isClose()) {
             return;
         }
 
@@ -211,7 +209,7 @@ function __execQueryAndReturnStatement(sql: string, dbPointer: interop.Reference
         cursorRef.value = null;
         cursorRef = null;
 
-        throw NSString.stringWithUTF8String(sqlite3_errmsg(dbPointer.value)).toString();
+        throw new Error(NSString.stringWithUTF8String(sqlite3_errmsg(dbPointer.value)).toString());
     }
     return cursorRef.value;
 }
@@ -246,22 +244,22 @@ function __replaceQuestionMarkForParams(whereParams: Array<any>): Function {
  *
  * @returns (returnType: ReturnType) => Array<any>;
  */
-function __processCursor(cursorRef: any, returnType: ReturnType, reduceOrMapSub?: any) {
-    let result: Array<any> | {} = (reduceOrMapSub && reduceOrMapSub.initialValue) || [];
-    let dbValue = null;
+function __processCursor(cursorRef: any, returnType: ReturnType, transformerAgent?: TransformerType) {
+    let result: Array<unknown> | {} = (transformerAgent && transformerAgent.initialValue) || [];
+    let dbRow: unknown = null;
 
     if (sqlite3_data_count(cursorRef) > 0) {
         let counter = 0;
         do {
-            dbValue = __getRowValues(cursorRef, returnType);
-            if (reduceOrMapSub) {
-                if (reduceOrMapSub.initialValue) {
-                    result = reduceOrMapSub.callback(result, dbValue, counter++);
+            dbRow = __getRowValues(cursorRef, returnType);
+            if (transformerAgent && transformerAgent.transform) {
+                if (transformerAgent.initialValue) {
+                    result = (transformerAgent.transform as ReduceCallbackType)(result, dbRow, counter++);
                     continue;
                 }
-                dbValue = reduceOrMapSub.callback(dbValue, counter++);
+                dbRow = (transformerAgent.transform  as MapCallbackType)(dbRow, counter++);
             }
-            (<Array<any>>result).push( dbValue );
+            (<Array<unknown>>result).push( dbRow );
             // Condition on the while fixes issue #8
         } while (sqlite3_step(cursorRef) === 100 /*SQLITE_ROW*/);
     }
@@ -270,10 +268,15 @@ function __processCursor(cursorRef: any, returnType: ReturnType, reduceOrMapSub?
     return result;
 }
 
-function* __processCursorReturnGenerator(cursorRef: any, returnType: ReturnType) {
+function* __processCursorReturnGenerator(cursorRef: any, returnType: ReturnType, transformerAgent?: TransformerType) {
     if (sqlite3_data_count(cursorRef) > 0) {
+        let counter = 0;
         do {
-            yield  __getRowValues(cursorRef, returnType);
+            const row = __getRowValues(cursorRef, returnType);
+            if (transformerAgent && transformerAgent.transform) {
+                yield (transformerAgent.transform  as MapCallbackType)(row, counter++); continue;
+            }
+            yield  row;
             // Condition on the while fixes issue #8
         } while (sqlite3_step(cursorRef) === 100 /*SQLITE_ROW*/);
     }
@@ -289,20 +292,18 @@ function* __processCursorReturnGenerator(cursorRef: any, returnType: ReturnType)
  * @param returnType ReturnType
  * @returns JS array of object like {[column:string]: any} or array
  */
-function __getRowValues(cursor: any, returnType: ReturnType): any {
+function __getRowValues(cursor: any, returnType: ReturnType): Array<unknown> | Record<string, unknown> {
 
     const rowValue: Array<unknown> | Record<string, unknown> = returnType === ReturnType.AS_ARRAY ?  [] : {};
     const columnCount: number = sqlite3_column_count(cursor);
     const fn = (col: number) => {
         return NSString.stringWithUTF8String(
-            sqlite3_column_text(cursor, col)
+            sqlite3_column_text(cursor, col) || ""
         ).toString();
     };
 
     for (let i = 0; i < columnCount; i++) {
-        const value = readDbValue(
-            sqlite3_column_type(cursor, i),
-            i, fn);
+        const value = readDbValue(sqlite3_column_type(cursor, i), i, fn);
 
         // If result wanted as array of array
         if (returnType === ReturnType.AS_ARRAY) {
@@ -341,7 +342,7 @@ function __openCreateDataBase(dbName: string, mode: number) {
     }
 
     if (resultCode !== 0 /*SQLITE_OK*/) {
-        throw `Could not open database. sqlite error code ${resultCode}`;
+        throw new Error(`Could not open database. sqlite error code ${resultCode}`);
     }
 
     return dbInstance;
@@ -379,7 +380,7 @@ function __mapToAddOrUpdateValues(values: { [key: string]: any; }, inserting: bo
  * if creating table scripts error
  */
 export function DbBuilder(dbName: string, options?: DbCreationOptions): SqliteAccess {
-    if (!dbName) throw "Must specify a db name";
+    if (!dbName) throw new Error("Must specify a db name");
 
     // Ensure version be 1 or greater and returnType AS_OBJECT
     options = Object.assign({

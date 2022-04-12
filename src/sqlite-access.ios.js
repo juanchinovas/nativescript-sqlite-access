@@ -1,5 +1,5 @@
 import { knownFolders } from "@nativescript/core/file-system";
-import { parseToDbValue, ExtendedPromise, runInitialDbScript, readDbValue } from './sqlite-access.common';
+import { parseToDbValue, QueryProcessor, runInitialDbScript, readDbValue } from './sqlite-access.common';
 class SqliteAccess {
     constructor(db, returnType) {
         this.db = db;
@@ -28,41 +28,36 @@ class SqliteAccess {
         return Number(value);
     }
     select(sql, conditionParams) {
-        return new ExtendedPromise((subscribers, resolve, error) => {
+        return new QueryProcessor((transformerAgent, resolve, error) => {
             try {
                 sql = sql.replace(/\?/g, __replaceQuestionMarkForParams(conditionParams));
                 const cursor = __execQueryAndReturnStatement(sql, this.db);
-                const result = __processCursor(cursor, this.returnType, subscribers.shift());
-                resolve(result);
+                if (transformerAgent && transformerAgent.type === 1) {
+                    return resolve(__processCursorReturnGenerator(cursor, this.returnType, transformerAgent));
+                }
+                resolve(__processCursor(cursor, this.returnType, transformerAgent));
             }
             catch (ex) {
                 error(ex);
             }
         });
     }
-    selectAsCursor(sql, conditionParams) {
-        const cursor = __execQueryAndReturnStatement(sql.replace(/\?/g, __replaceQuestionMarkForParams(conditionParams)), this.db);
-        return __processCursorReturnGenerator(cursor, this.returnType);
-    }
     query(param) {
-        return new ExtendedPromise((subscribers, resolve, error) => {
+        return new QueryProcessor((transformerAgent, resolve, error) => {
             try {
                 const cursor = __execQueryAndReturnStatement(__assembleScript(param), this.db);
-                const result = __processCursor(cursor, this.returnType, subscribers.shift());
-                resolve(result);
+                if (transformerAgent && transformerAgent.type === 1) {
+                    return resolve(__processCursorReturnGenerator(cursor, this.returnType, transformerAgent));
+                }
+                resolve(__processCursor(cursor, this.returnType, transformerAgent));
             }
             catch (ex) {
-                error(`ErrCode:${ex}`);
+                error(ex);
             }
         });
     }
-    queryAsCursor(param) {
-        const cursor = __execQueryAndReturnStatement(__assembleScript(param), this.db);
-        return __processCursorReturnGenerator(cursor, this.returnType);
-    }
     execSQL(sql) {
-        let cursorRef;
-        cursorRef = __execQueryAndReturnStatement(sql, this.db);
+        const cursorRef = __execQueryAndReturnStatement(sql, this.db);
         sqlite3_finalize(cursorRef.value);
     }
     beginTransact() {
@@ -75,7 +70,7 @@ class SqliteAccess {
         this.execSQL("ROLLBACK TRANSACTION");
     }
     close() {
-        if (this.db === null) {
+        if (this.isClose()) {
             return;
         }
         sqlite3_close(this.db.value);
@@ -93,7 +88,7 @@ function __execQueryAndReturnStatement(sql, dbPointer) {
         sqlite3_finalize(cursorRef.value);
         cursorRef.value = null;
         cursorRef = null;
-        throw NSString.stringWithUTF8String(sqlite3_errmsg(dbPointer.value)).toString();
+        throw new Error(NSString.stringWithUTF8String(sqlite3_errmsg(dbPointer.value)).toString());
     }
     return cursorRef.value;
 }
@@ -111,30 +106,36 @@ function __replaceQuestionMarkForParams(whereParams) {
         return parseToDbValue(whereParams[counter++]);
     };
 }
-function __processCursor(cursorRef, returnType, reduceOrMapSub) {
-    let result = (reduceOrMapSub && reduceOrMapSub.initialValue) || [];
-    let dbValue = null;
+function __processCursor(cursorRef, returnType, transformerAgent) {
+    let result = (transformerAgent && transformerAgent.initialValue) || [];
+    let dbRow = null;
     if (sqlite3_data_count(cursorRef) > 0) {
         let counter = 0;
         do {
-            dbValue = __getRowValues(cursorRef, returnType);
-            if (reduceOrMapSub) {
-                if (reduceOrMapSub.initialValue) {
-                    result = reduceOrMapSub.callback(result, dbValue, counter++);
+            dbRow = __getRowValues(cursorRef, returnType);
+            if (transformerAgent && transformerAgent.transform) {
+                if (transformerAgent.initialValue) {
+                    result = transformerAgent.transform(result, dbRow, counter++);
                     continue;
                 }
-                dbValue = reduceOrMapSub.callback(dbValue, counter++);
+                dbRow = transformerAgent.transform(dbRow, counter++);
             }
-            result.push(dbValue);
+            result.push(dbRow);
         } while (sqlite3_step(cursorRef) === 100);
     }
     sqlite3_finalize(cursorRef);
     return result;
 }
-function* __processCursorReturnGenerator(cursorRef, returnType) {
+function* __processCursorReturnGenerator(cursorRef, returnType, transformerAgent) {
     if (sqlite3_data_count(cursorRef) > 0) {
+        let counter = 0;
         do {
-            yield __getRowValues(cursorRef, returnType);
+            const row = __getRowValues(cursorRef, returnType);
+            if (transformerAgent && transformerAgent.transform) {
+                yield transformerAgent.transform(row, counter++);
+                continue;
+            }
+            yield row;
         } while (sqlite3_step(cursorRef) === 100);
     }
     sqlite3_finalize(cursorRef);
@@ -143,7 +144,7 @@ function __getRowValues(cursor, returnType) {
     const rowValue = returnType === 1 ? [] : {};
     const columnCount = sqlite3_column_count(cursor);
     const fn = (col) => {
-        return NSString.stringWithUTF8String(sqlite3_column_text(cursor, col)).toString();
+        return NSString.stringWithUTF8String(sqlite3_column_text(cursor, col) || "").toString();
     };
     for (let i = 0; i < columnCount; i++) {
         const value = readDbValue(sqlite3_column_type(cursor, i), i, fn);
@@ -169,7 +170,7 @@ function __openCreateDataBase(dbName, mode) {
         resultCode = sqlite3_open_v2(dbName, dbInstance, mode, null);
     }
     if (resultCode !== 0) {
-        throw `Could not open database. sqlite error code ${resultCode}`;
+        throw new Error(`Could not open database. sqlite error code ${resultCode}`);
     }
     return dbInstance;
 }
@@ -185,7 +186,7 @@ function __mapToAddOrUpdateValues(values, inserting) {
 }
 export function DbBuilder(dbName, options) {
     if (!dbName)
-        throw "Must specify a db name";
+        throw new Error("Must specify a db name");
     options = Object.assign({
         version: 1,
         returnType: 0

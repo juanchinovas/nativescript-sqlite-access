@@ -4,9 +4,12 @@ import {
     ReturnType,
     IDatabase,
     parseToDbValue,
-    ExtendedPromise,
+    QueryProcessor,
     runInitialDbScript,
-    readDbValue
+    readDbValue,
+    MapCallbackType,
+    TransformerType,
+    ReduceCallbackType
 } from './sqlite-access.common';
 
 /**
@@ -75,19 +78,22 @@ class SqliteAccess implements IDatabase {
 
     /**
      * Query the table data that matches the condition.
-     * @see ExtendedPromise for more information.
+     * @see QueryProcessor for more information.
      *
      * @param {string} sql SQL Query. `SELECT [COLUMNS,] FROM TABLE WHERE column1=? and column2=?`. WHERE clause can be omitted
      * @param {Array<any>} conditionParams - optional if there is not WHERE clause in the sql param
      *
-     * @returns {ExtendedPromise} ExtendedPromise object that returns a Promise<Array<any>>
+     * @returns {QueryProcessor} QueryProcessor object that returns a Promise<Array<any>>
      */
-    select(sql: string, params?: any[]): ExtendedPromise {
-        return new ExtendedPromise((subscribers, resolve, reject) => {
+    select(sql: string, params?: any[]): QueryProcessor {
+        return new QueryProcessor((transformerAgent, resolve, reject) => {
             try {
                 const cursor =  this.db.rawQuery(sql, __objectArrayToStringArray(params));
-                const result = __processCursor(cursor, this.returnType, subscribers.shift());
-                resolve(result);
+                if(transformerAgent && transformerAgent.type === 1 /*Generator*/) {
+                    return resolve(__processCursorReturnGenerator(cursor, this.returnType, transformerAgent));
+                }
+
+                resolve(__processCursor(cursor, this.returnType, transformerAgent));
             } catch (ex) {
                 reject(ex);
             }
@@ -103,7 +109,7 @@ class SqliteAccess implements IDatabase {
 
     /**
      * Execute a query selector with the params passed in
-     * @see ExtendedPromise for more information.
+     * @see QueryProcessor for more information.
      *
      * @param {string} tableName
      * @param {Array<string>} columns - optional
@@ -113,10 +119,10 @@ class SqliteAccess implements IDatabase {
      * @param {string} orderBy - optional
      * @param {string} limit - optional
      *
-     * @returns {ExtendedPromise} ExtendedPromise object that returns a Promise<Array<any>>
+     * @returns {QueryProcessor} QueryProcessor object that returns a Promise<Array<any>>
      */
-    query(param: { tableName: string, columns?: string[], selection?: string, selectionArgs?: any[], groupBy?: string, orderBy?: string, limit?: string }): ExtendedPromise {
-        return new ExtendedPromise((subscribers, resolve, error) => {
+    query(param: { tableName: string, columns?: string[], selection?: string, selectionArgs?: any[], groupBy?: string, orderBy?: string, limit?: string }): QueryProcessor {
+        return new QueryProcessor((transformerAgent, resolve, error) => {
             try {
                 const cursor =  this.db.query(
                     param.tableName,
@@ -126,24 +132,16 @@ class SqliteAccess implements IDatabase {
                     param.groupBy,
                     param.orderBy,
                     param.limit);
-                const result = <Array<any>>__processCursor(cursor, this.returnType, subscribers.shift());
-                resolve(result);
+
+                if(transformerAgent && transformerAgent.type === 1 /*Generator*/) {
+                    return resolve(__processCursorReturnGenerator(cursor, this.returnType, transformerAgent));
+                }
+
+                resolve(__processCursor(cursor, this.returnType, transformerAgent));
             } catch (ex) {
                 error(ex);
             }
         });
-    }
-
-    queryAsCursor(param: { tableName: string, columns?: string[], selection?: string, selectionArgs?: any[], groupBy?: string, orderBy?: string, limit?: string }) {
-        const cursor =  this.db.query(
-            param.tableName,
-            param.columns,
-            param.selection,
-            __objectArrayToStringArray(param.selectionArgs),
-            param.groupBy,
-            param.orderBy,
-            param.limit);
-        return __processCursorReturnGenerator(cursor, this.returnType);
     }
 
     /**
@@ -200,18 +198,18 @@ class SqliteAccess implements IDatabase {
  *
  * @returns any;
  */
-function __processCursor(cursor: android.database.Cursor, returnType: ReturnType, reduceOrMapSub?: any) {
-    let result: Array<any> | {} = (reduceOrMapSub && reduceOrMapSub.initialValue) || [];
+function __processCursor(cursor: android.database.Cursor, returnType: ReturnType, transformerAgent?: TransformerType) {
+    let result: Array<any> | {} = (transformerAgent && transformerAgent.initialValue) || [];
     if (cursor.getCount() > 0) {
         let dbValue = null;
         while ( cursor.moveToNext() ) {
             dbValue = __getRowValues(cursor, returnType);
-            if (reduceOrMapSub) {
-                if (reduceOrMapSub.initialValue) {
-                    result = reduceOrMapSub.callback(result, dbValue, cursor.getPosition());
+            if (transformerAgent && transformerAgent.transform) {
+                if (transformerAgent.initialValue) {
+                    result = (transformerAgent.transform as ReduceCallbackType)(result, dbValue, cursor.getPosition());
                     continue;
                 }
-                dbValue = reduceOrMapSub.callback(dbValue, cursor.getPosition());
+                dbValue = (transformerAgent.transform  as MapCallbackType)(dbValue, cursor.getPosition());
             }
             (<Array<any>>result).push( dbValue );
         }
@@ -221,10 +219,14 @@ function __processCursor(cursor: android.database.Cursor, returnType: ReturnType
     return result;
 }
 
-function* __processCursorReturnGenerator(cursor: android.database.Cursor, returnType: ReturnType) {
+function* __processCursorReturnGenerator(cursor: android.database.Cursor, returnType: ReturnType, transformerAgent?: TransformerType) {
     if (cursor.getCount() > 0) {
         while ( cursor.moveToNext() ) {
-            yield __getRowValues(cursor, returnType);
+            const row = __getRowValues(cursor, returnType);
+            if (transformerAgent && transformerAgent.transform) {
+                yield (transformerAgent.transform  as MapCallbackType)(row, cursor.getPosition()); continue;
+            }
+            yield  row;
         }
     }
     cursor.close();

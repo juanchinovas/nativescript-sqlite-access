@@ -1,4 +1,4 @@
-import { DbCreationOptions, ReturnType, IDatabase, ExtendedPromise } from './sqlite-access.common';
+import { DbCreationOptions, ReturnType, IDatabase, QueryProcessor } from './sqlite-access.common';
 declare class SqliteAccess implements IDatabase {
     private db;
     private returnType;
@@ -13,7 +13,7 @@ declare class SqliteAccess implements IDatabase {
         [key: string]: any;
     }, whereClause: string, whereArs: any[]): number;
     delete(table: string, whereClause?: string, whereArgs?: any[]): number;
-    select(sql: string, params?: any[]): ExtendedPromise;
+    select(sql: string, params?: any[]): QueryProcessor;
     selectAsCursor(sql: string, params?: any[]): Generator<any, void, unknown>;
     query(param: {
         tableName: string;
@@ -23,16 +23,7 @@ declare class SqliteAccess implements IDatabase {
         groupBy?: string;
         orderBy?: string;
         limit?: string;
-    }): ExtendedPromise;
-    queryAsCursor(param: {
-        tableName: string;
-        columns?: string[];
-        selection?: string;
-        selectionArgs?: any[];
-        groupBy?: string;
-        orderBy?: string;
-        limit?: string;
-    }): Generator<any, void, unknown>;
+    }): QueryProcessor;
     execSQL(sql: string): void;
     beginTransact(): void;
     commit(): void;
