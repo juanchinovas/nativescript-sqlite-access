@@ -14,7 +14,7 @@ describe("#replace()", function() {
         });
 
         database.query({ tableName: databaseTables.PERSONS, columns: ["name"], selection: "_id=?", selectionArgs:[1] }).process()
-        .then(function(results) {
+        .then(function(results: Array<any>) {
             let result = results.pop();
             done(result.name === "Filly Lollo");
         })
@@ -31,7 +31,7 @@ describe("#replace()", function() {
         database.commit();
 
         database.query({ tableName: databaseTables.PERSONS, columns: ["name"], selection: "_id=?", selectionArgs:[1] }).process()
-        .then(function(results) {
+        .then(function(results: Array<any>) {
             let result = results.pop();
             done(result.name === "Mixed Box");
         })
@@ -47,7 +47,7 @@ describe("#replace()", function() {
         database.rollback();
 
         database.query({ tableName: databaseTables.PERSONS, columns: ["name"], selection: "_id=?", selectionArgs:[1] }).process()
-        .then(function(results) {
+        .then(function(results: Array<any>) {
             let result = results.pop();
             done(result.name === "Mixed Box");
         })

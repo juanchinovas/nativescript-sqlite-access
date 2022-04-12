@@ -66,7 +66,7 @@ export class HomeViewModel extends Observable {
         };
 
         this.db.query({ tableName: databaseTables.PERSONS })
-        .reduce(reducerFn, {})
+        .process(reducerFn, {})
         .then(result => {
             console.log("Reducing.: ");
             console.log(result);
@@ -74,7 +74,7 @@ export class HomeViewModel extends Observable {
         .catch(console.error);
 
         this.db.query({ tableName: databaseTables.PERSONS })
-        .map(mapFn)
+        .process(mapFn)
         .then(result => {
             console.log("Mapping.: ");
             console.log(result);
