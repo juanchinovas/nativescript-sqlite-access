@@ -1,5 +1,5 @@
 import { Application } from "@nativescript/core";
-import { parseToDbValue, QueryProcessor, runInitialDbScript, readDbValue } from './sqlite-access.common';
+import { parseToDbValue, QueryProcessor, runInitialDbScript, readDbValue } from "./sqlite-access.common";
 class SqliteAccess {
     constructor(db, returnType) {
         this.db = db;
@@ -134,7 +134,7 @@ function __openCreateDataBase(dbName, mode) {
 function __objectArrayToStringArray(params) {
     if (!params)
         return null;
-    let stringArray = [];
+    const stringArray = [];
     let value = null;
     for (let i = 0, len = params.length; i < len; i++) {
         value = parseToDbValue(params[i]);
@@ -142,21 +142,21 @@ function __objectArrayToStringArray(params) {
             stringArray.push(value);
             continue;
         }
-        stringArray.push(value.toString().replace(/''/g, "'").replace(/^'|'$/g, ''));
+        stringArray.push(value.toString().replace(/''/g, "'").replace(/^'|'$/g, ""));
     }
     return stringArray;
 }
 function __mapToContentValues(values) {
-    let contentValues = new android.content.ContentValues();
+    const contentValues = new android.content.ContentValues();
     let value = null;
     for (const key in values) {
-        if (values.hasOwnProperty(key)) {
+        if (Object.prototype.hasOwnProperty.call(values, key)) {
             value = parseToDbValue(values[key]);
             if (value === null) {
                 contentValues.putNull(key);
                 continue;
             }
-            contentValues.put(key, value.toString().replace(/''/g, "'").replace(/^'|'$/g, ''));
+            contentValues.put(key, value.toString().replace(/''/g, "'").replace(/^'|'$/g, ""));
         }
     }
     return contentValues;

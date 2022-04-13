@@ -1,24 +1,24 @@
-import { DbCreationOptions, ReturnType, IDatabase, QueryProcessor } from './sqlite-access.common';
+import { DbCreationOptions, ReturnType, IDatabase, QueryProcessor } from "./sqlite-access.common";
 declare class SqliteAccess implements IDatabase {
     private db;
     private returnType;
-    constructor(db: interop.Reference<any>, returnType: ReturnType);
+    constructor(db: interop.Reference<interop.Pointer>, returnType: ReturnType);
     insert(tableName: string, values: {
-        [key: string]: any;
+        [key: string]: unknown;
     }): number;
     replace(tableName: string, values: {
-        [key: string]: any;
+        [key: string]: unknown;
     }): number;
     update(tableName: string, values: {
-        [key: string]: any;
-    }, whereClause: string, whereArs: any[]): number;
-    delete(tableName: string, whereClause?: string, whereArgs?: any[]): number;
-    select(sql: string, conditionParams?: any[]): QueryProcessor;
+        [key: string]: unknown;
+    }, whereClause: string, whereArs: unknown[]): number;
+    delete(tableName: string, whereClause?: string, whereArgs?: unknown[]): number;
+    select(sql: string, conditionParams?: unknown[]): QueryProcessor;
     query(param: {
         tableName: string;
         columns?: string[];
         selection?: string;
-        selectionArgs?: any[];
+        selectionArgs?: unknown[];
         groupBy?: string;
         orderBy?: string;
         limit?: string;

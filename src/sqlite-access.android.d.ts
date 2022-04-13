@@ -1,25 +1,25 @@
-import { DbCreationOptions, ReturnType, IDatabase, QueryProcessor } from './sqlite-access.common';
+import { DbCreationOptions, ReturnType, IDatabase, QueryProcessor } from "./sqlite-access.common";
 declare class SqliteAccess implements IDatabase {
     private db;
     private returnType;
     constructor(db: android.database.sqlite.SQLiteDatabase, returnType: ReturnType);
     insert(table: string, values: {
-        [key: string]: any;
+        [key: string]: unknown;
     }): number;
     replace(table: string, values: {
-        [key: string]: any;
+        [key: string]: unknown;
     }): number;
     update(table: string, values: {
-        [key: string]: any;
-    }, whereClause: string, whereArs: any[]): number;
-    delete(table: string, whereClause?: string, whereArgs?: any[]): number;
-    select(sql: string, params?: any[]): QueryProcessor;
-    selectAsCursor(sql: string, params?: any[]): Generator<any, void, unknown>;
+        [key: string]: unknown;
+    }, whereClause: string, whereArs: unknown[]): number;
+    delete(table: string, whereClause?: string, whereArgs?: unknown[]): number;
+    select(sql: string, params?: unknown[]): QueryProcessor;
+    selectAsCursor(sql: string, params?: unknown[]): Generator<unknown, void, unknown>;
     query(param: {
         tableName: string;
         columns?: string[];
         selection?: string;
-        selectionArgs?: any[];
+        selectionArgs?: unknown[];
         groupBy?: string;
         orderBy?: string;
         limit?: string;
