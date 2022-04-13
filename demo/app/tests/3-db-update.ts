@@ -9,13 +9,18 @@ describe("#update()", function() {
 
     it("Update company", function(done) {
         database.update(databaseTables.WORK_COMPANIES, {
-            name: "Facebook is for connect"
+            name: "NookBe is for connect"
         }, "_id=?", [1]);
 
-        database.query({ tableName: databaseTables.WORK_COMPANIES, columns: ["name"], selection: "_id=?", selectionArgs:[1] }).process()
+        database.query({
+            tableName: databaseTables.WORK_COMPANIES,
+            columns: ["name"],
+            selection: "_id=?",
+            selectionArgs: [1]
+        }).process()
         .then(function(results: Array<any>) {
             let result = results.pop();
-            done(result.name === "Facebook is for connect");
+            done(result.name === "NookBe is for connect");
         })
         .catch(done);
 
@@ -24,14 +29,19 @@ describe("#update()", function() {
     it("Update company and committed", function(done) {
         database.beginTransact();
         database.update(databaseTables.WORK_COMPANIES, {
-            name: "Facebook updated"
+            name: "NookBe updated"
         }, "_id=?", [1]);
         database.commit();
 
-        database.query({ tableName: databaseTables.WORK_COMPANIES, columns: ["name"], selection: "_id=?", selectionArgs:[1] }).process()
+        database.query({
+            tableName: databaseTables.WORK_COMPANIES,
+            columns: ["name"],
+            selection: "_id=?",
+            selectionArgs: [1]
+        }).process()
         .then(function(results: Array<any>) {
             let result = results.pop();
-            done(result.name === "Facebook updated");
+            done(result.name === "NookBe updated");
         })
         .catch(done);
     });
@@ -39,14 +49,19 @@ describe("#update()", function() {
     it("person table #3 Transaction rollback", function(done) {
         database.beginTransact();
         database.update(databaseTables.WORK_COMPANIES, {
-            name: "Facebook is bad"
+            name: "NookBe is bad"
         }, "_id=?", [1]);
         database.rollback();
 
-        database.query({ tableName: databaseTables.WORK_COMPANIES, columns: ["name"], selection: "_id=?", selectionArgs:[1] }).process()
+        database.query({
+            tableName: databaseTables.WORK_COMPANIES,
+            columns: ["name"],
+            selection: "_id=?",
+            selectionArgs: [1]
+        }).process()
         .then(function(results: Array<any>) {
             let result = results.pop();
-            done(result.name === "Facebook updated");
+            done(result.name === "NookBe updated");
         })
         .catch(done);
     });

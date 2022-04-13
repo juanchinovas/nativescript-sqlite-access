@@ -13,7 +13,12 @@ describe("#replace()", function() {
             _id: 2
         });
 
-        database.query({ tableName: databaseTables.PERSONS, columns: ["name"], selection: "_id=?", selectionArgs:[1] }).process()
+        database.query({
+            tableName: databaseTables.PERSONS,
+            columns: ["name"],
+            selection: "_id=?",
+            selectionArgs: [1]
+        }).process()
         .then(function(results: Array<any>) {
             let result = results.pop();
             done(result.name === "Filly Lollo");
@@ -30,7 +35,12 @@ describe("#replace()", function() {
         });
         database.commit();
 
-        database.query({ tableName: databaseTables.PERSONS, columns: ["name"], selection: "_id=?", selectionArgs:[1] }).process()
+        database.query({
+            tableName: databaseTables.PERSONS,
+            columns: ["name"],
+            selection: "_id=?",
+            selectionArgs: [1]
+        }).process()
         .then(function(results: Array<any>) {
             let result = results.pop();
             done(result.name === "Mixed Box");
@@ -41,12 +51,17 @@ describe("#replace()", function() {
     it("replace person and rollback", function(done) {
         database.beginTransact();
         database.replace(databaseTables.PERSONS, {
-            name: "Facebook is bad",
+            name: "NookBe is bad",
             _id: 2
         });
         database.rollback();
 
-        database.query({ tableName: databaseTables.PERSONS, columns: ["name"], selection: "_id=?", selectionArgs:[1] }).process()
+        database.query({
+            tableName: databaseTables.PERSONS,
+            columns: ["name"],
+            selection: "_id=?",
+            selectionArgs: [1]
+        }).process()
         .then(function(results: Array<any>) {
             let result = results.pop();
             done(result.name === "Mixed Box");

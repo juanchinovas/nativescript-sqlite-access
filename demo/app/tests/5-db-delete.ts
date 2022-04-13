@@ -10,7 +10,12 @@ describe("#delete()", function() {
     it("delete company", function(done) {
         database.delete(databaseTables.WORK_COMPANIES, "_id=?", [1]);
 
-        database.query({ tableName: databaseTables.WORK_COMPANIES, columns: ["name"], selection: "_id=?", selectionArgs:[3] }).process()
+        database.query({
+            tableName: databaseTables.WORK_COMPANIES,
+            columns: ["name"],
+            selection: "_id=?",
+            selectionArgs: [3]
+        }).process()
         .then(function(results: Array<any>) {
             done(results.length === 0);
         })
@@ -21,8 +26,13 @@ describe("#delete()", function() {
         database.beginTransact();
         database.delete(databaseTables.PERSONS, "_id=?", [3]);
         database.commit();
-        
-        database.query({ tableName: databaseTables.PERSONS, columns: ["name"], selection: "_id=?", selectionArgs:[3] }).process()
+
+        database.query({
+            tableName: databaseTables.PERSONS,
+            columns: ["name"],
+            selection: "_id=?",
+            selectionArgs: [3]
+        }).process()
         .then(function(results: Array<any>) {
             done(results.length === 0);
         })
@@ -34,10 +44,15 @@ describe("#delete()", function() {
         database.delete(databaseTables.PERSONS, "_id=?", [2]);
         database.rollback();
 
-        database.query({ tableName: databaseTables.PERSONS, columns: ["name"], selection: "_id=?", selectionArgs:[2] }).process()
+        database.query({
+            tableName: databaseTables.PERSONS,
+            columns: ["name"],
+            selection: "_id=?",
+            selectionArgs: [2]
+        }).process()
         .then(function(results: Array<any>) {
             let result = results.pop();
-            done(result.name === "Carlos Done");
+            done(result.name === "Novas Done");
         })
         .catch(done);
     });

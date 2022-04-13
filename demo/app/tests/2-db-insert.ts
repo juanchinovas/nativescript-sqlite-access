@@ -9,28 +9,28 @@ describe("#insert()", function() {
 
     it("company table #1", function() {
         let insertedId = database.insert(databaseTables.WORK_COMPANIES, {
-            name: "Facebook"
+            name: "NookBe"
         });
         assert.equal(insertedId, 1);
     });
 
     it("company table #2", function() {
         let insertedId = database.insert(databaseTables.WORK_COMPANIES, {
-            name: "Google"
+            name: "NookBe2"
         });
         assert.equal(insertedId, 2);
     });
 
     it("person table #1", function() {
         let insertedId = database.insert(databaseTables.PERSONS, {
-            name: "Carlos Done"
+            name: "Novas Done"
         });
         assert.equal(insertedId, 1);
     });
 
     it("person table #2", function() {
         let insertedId = database.insert(databaseTables.PERSONS, {
-            name: "Kinder Power"
+            name: "Kind Power"
         });
         assert.equal(insertedId, 2);
     });
