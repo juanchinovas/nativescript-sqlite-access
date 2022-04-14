@@ -96,8 +96,8 @@ class SqliteAccess implements IDatabase {
 	 *
 	 * @returns {QueryProcessor} QueryProcessor object that returns a Promise<Array<unknown>>
 	 */
-	select(sql: string, conditionParams?: unknown[]): QueryProcessor {
-		return new QueryProcessor((transformerAgent, resolve, error) => {
+	select<T>(sql: string, conditionParams?: unknown[]): QueryProcessor<T> {
+		return new QueryProcessor<T>((transformerAgent, resolve, error) => {
 			try {
 				sql = sql.replace(/\?/g, __replaceQuestionMarkForParams(conditionParams));
 				const cursor = __execQueryAndReturnStatement(sql, this.db);
@@ -126,8 +126,8 @@ class SqliteAccess implements IDatabase {
 	 *
 	 * @returns {QueryProcessor} QueryProcessor object that returns a Promise<Array<unknown>>
 	 */
-	query(param: { tableName: string, columns?: string[], selection?: string, selectionArgs?: unknown[], groupBy?: string, orderBy?: string, limit?: string }): QueryProcessor {
-		return new QueryProcessor((transformerAgent, resolve, error) => {
+	query<T>(param: { tableName: string, columns?: string[], selection?: string, selectionArgs?: unknown[], groupBy?: string, orderBy?: string, limit?: string }): QueryProcessor<T> {
+		return new QueryProcessor<T>((transformerAgent, resolve, error) => {
 			try {
 				const cursor = __execQueryAndReturnStatement(__assembleScript(param), this.db);
 				if (transformerAgent && transformerAgent.type === 1 /*Generator*/) {

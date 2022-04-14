@@ -85,8 +85,8 @@ class SqliteAccess implements IDatabase {
 	 *
 	 * @returns {QueryProcessor} QueryProcessor object that returns a Promise<Array<unknown>>
 	 */
-	select(sql: string, params?: unknown[]): QueryProcessor {
-		return new QueryProcessor((transformerAgent, resolve, reject) => {
+	select<T>(sql: string, params?: unknown[]): QueryProcessor<T> {
+		return new QueryProcessor<T>((transformerAgent, resolve, reject) => {
 			try {
 				const cursor = this.db.rawQuery(sql, __objectArrayToStringArray(params));
 				if (transformerAgent && transformerAgent.type === 1 /*Generator*/) {
@@ -98,13 +98,6 @@ class SqliteAccess implements IDatabase {
 				reject(ex);
 			}
 		});
-	}
-
-	selectAsCursor(sql: string, params?: unknown[]) {
-		return __processCursorReturnGenerator(
-			this.db.rawQuery(sql, __objectArrayToStringArray(params)),
-			this.returnType
-		);
 	}
 
 	/**
@@ -121,8 +114,8 @@ class SqliteAccess implements IDatabase {
 	 *
 	 * @returns {QueryProcessor} QueryProcessor object that returns a Promise<Array<unknown>>
 	 */
-	query(param: { tableName: string, columns?: string[], selection?: string, selectionArgs?: unknown[], groupBy?: string, orderBy?: string, limit?: string }): QueryProcessor {
-		return new QueryProcessor((transformerAgent, resolve, error) => {
+	query<T>(param: { tableName: string, columns?: string[], selection?: string, selectionArgs?: unknown[], groupBy?: string, orderBy?: string, limit?: string }): QueryProcessor<T> {
+		return new QueryProcessor<T>((transformerAgent, resolve, error) => {
 			try {
 				const cursor = this.db.query(
 					param.tableName,
@@ -178,7 +171,7 @@ class SqliteAccess implements IDatabase {
 	 * Close the database connection
 	 */
 	close(): void {
-		if (this.db === null) { // already closed
+		if (this.isClose()) { // already closed
 			return;
 		}
 
@@ -348,7 +341,7 @@ function __getContext() {
  * if creating table scripts error
  */
 export function DbBuilder(dbName: string, options?: DbCreationOptions): SqliteAccess {
-	if (!dbName) throw "Must specify a db name";
+	if (!dbName) throw new Error("Must specify a db name");
 
 	// Make sure version be 1 or greater and returnType AS_OBJECT
 	options = Object.assign({

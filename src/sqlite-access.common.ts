@@ -48,7 +48,7 @@ export interface IDatabase {
 	 *
 	 * @returns {QueryProcessor} QueryProcessor object that returns a Promise<Array<unknown>>
 	 */
-	select(sql: string, conditionParams?: Array<unknown>): QueryProcessor;
+	select<T>(sql: string, conditionParams?: Array<unknown>): QueryProcessor<T>;
 
 	/**
 	 * Execute a query selector with the params passed in
@@ -64,11 +64,11 @@ export interface IDatabase {
 	 *
 	 * @returns {QueryProcessor} QueryProcessor object that returns a Promise<Array<unknown>>
 	 */
-	query(param: {
+	query<T>(param: {
 		tableName: string, columns?: Array<string>,
 		selection?: string, selectionArgs?: Array<unknown>,
 		groupBy?: string, orderBy?: string, limit?: string
-	}): QueryProcessor;
+	}): QueryProcessor<T>;
 
 	/**
 	 * Execute a SQL script and do not return anything
@@ -181,19 +181,19 @@ export function runInitialDbScript(
  * just one preprocessing function is apply to the data per call.
  * The process function is call just if the map or reduce function will not be apply.
  */
-export class QueryProcessor {
+export class QueryProcessor<T> {
 	private _executorFn: ExecutorType;
 
 	constructor(executorFn: ExecutorType) {
 		this._executorFn = executorFn;
 	}
 
-	process(transformer?: ReduceCallbackType | MapCallbackType, initialValue?: unknown): Promise<Array<unknown> | unknown> {
+	process(transformer?: ReduceCallbackType | MapCallbackType, initialValue?: unknown): Promise<T> {
 		const transformerAgent = { transform: transformer, initialValue, type: 0 };
 		return new Promise(this._executorFn.bind(null, transformerAgent));
 	}
 
-	asGenerator(transformer?: MapCallbackType): Promise<IterableIterator<Array<unknown> | Record<string, unknown>>> {
+	asGenerator(transformer?: MapCallbackType): Promise<IterableIterator<T>> {
 		const transformerAgent = { transform: transformer, type: 1 };
 		return new Promise(this._executorFn.bind(null, transformerAgent));
 	}

@@ -14,7 +14,6 @@ declare class SqliteAccess implements IDatabase {
     }, whereClause: string, whereArs: unknown[]): number;
     delete(table: string, whereClause?: string, whereArgs?: unknown[]): number;
     select(sql: string, params?: unknown[]): QueryProcessor;
-    selectAsCursor(sql: string, params?: unknown[]): Generator<unknown, void, unknown>;
     query(param: {
         tableName: string;
         columns?: string[];

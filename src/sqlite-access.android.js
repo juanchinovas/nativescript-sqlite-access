@@ -31,9 +31,6 @@ class SqliteAccess {
             }
         });
     }
-    selectAsCursor(sql, params) {
-        return __processCursorReturnGenerator(this.db.rawQuery(sql, __objectArrayToStringArray(params)), this.returnType);
-    }
     query(param) {
         return new QueryProcessor((transformerAgent, resolve, error) => {
             try {
@@ -62,7 +59,7 @@ class SqliteAccess {
         this.db.endTransaction();
     }
     close() {
-        if (this.db === null) {
+        if (this.isClose()) {
             return;
         }
         this.db.close();
@@ -167,7 +164,7 @@ function __getContext() {
 }
 export function DbBuilder(dbName, options) {
     if (!dbName)
-        throw "Must specify a db name";
+        throw new Error("Must specify a db name");
     options = Object.assign({
         version: 1,
         returnType: 0
