@@ -1,17 +1,11 @@
 import { DbBuilder, DbCreationOptions, IDatabase } from "nativescript-sqlite-access";
 import { creationTableQueries, dropTableQueries, databaseTables } from "../db-setting";
+import { getDb } from "./config";
 
 describe("Database creation", () => {
     let database: IDatabase;
-	const databaseName = "test-creation.db";
 	before(() => {
-		const config: DbCreationOptions = {
-			version: 1,
-			createTableScriptsFn: () => creationTableQueries,
-			dropTableScriptsFn: () => dropTableQueries,
-		};
-
-		database = DbBuilder(databaseName, config);
+		database = getDb("test-creation.db");
 	});
 
     describe("#DbBuilder(dbName, config)", () => {

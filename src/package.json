@@ -20,7 +20,7 @@
 		"demo-angular.ios": "npm run tsc && cd ../demo-angular && ns run ios --emulator",
 		"demo-vue.ios": "npm run tsc && cd ../demo-vue && ns run ios --emulator",
 		"demo-svelte.ios": "npm run tsc && cd ../demo-svelte && ns run ios --emulator",
-		"demo-test.ios": "npm run tsc && cd ../demo && ns test ios --emulator",
+		"demo-test.ios": "npm run tsc && cd ../demo && ns test ios --env.codeCoverage",
 		"demo.android": "npm run tsc && cd ../demo && ns run android",
 		"demo-svelte.android": "npm run tsc && cd ../demo-svelte && ns run android",
 		"demo-angular.android": "npm run tsc && cd ../demo-angular && ns run android",
