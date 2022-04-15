@@ -134,6 +134,10 @@ function __objectArrayToStringArray(params) {
     const stringArray = [];
     let value = null;
     for (let i = 0, len = params.length; i < len; i++) {
+        if (Array.isArray(params[i])) {
+            stringArray.push(params[i].join());
+            continue;
+        }
         value = parseToDbValue(params[i]);
         if (value === null) {
             stringArray.push(value);

@@ -13,8 +13,8 @@ declare class SqliteAccess implements IDatabase {
         [key: string]: unknown;
     }, whereClause: string, whereArs: unknown[]): number;
     delete(tableName: string, whereClause?: string, whereArgs?: unknown[]): number;
-    select(sql: string, conditionParams?: unknown[]): QueryProcessor;
-    query(param: {
+    select<T>(sql: string, conditionParams?: unknown[]): QueryProcessor<T>;
+    query<T>(param: {
         tableName: string;
         columns?: string[];
         selection?: string;
@@ -22,7 +22,7 @@ declare class SqliteAccess implements IDatabase {
         groupBy?: string;
         orderBy?: string;
         limit?: string;
-    }): QueryProcessor;
+    }): QueryProcessor<T>;
     execSQL(sql: string): void;
     beginTransact(): void;
     commit(): void;

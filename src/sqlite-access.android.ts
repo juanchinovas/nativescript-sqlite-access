@@ -7,9 +7,9 @@ import {
 	QueryProcessor,
 	runInitialDbScript,
 	readDbValue,
-	MapCallbackType,
+	MapCallback,
 	TransformerType,
-	ReduceCallbackType
+	ReduceCallback
 } from "./sqlite-access.common";
 
 /**
@@ -199,10 +199,10 @@ function __processCursor(cursor: android.database.Cursor, returnType: ReturnType
 			dbValue = __getRowValues(cursor, returnType);
 			if (transformerAgent && transformerAgent.transform) {
 				if (transformerAgent.initialValue) {
-					result = (transformerAgent.transform as ReduceCallbackType)(result, dbValue, cursor.getPosition());
+					result = (transformerAgent.transform as ReduceCallback)(result, dbValue, cursor.getPosition());
 					continue;
 				}
-				dbValue = (transformerAgent.transform as MapCallbackType)(dbValue, cursor.getPosition());
+				dbValue = (transformerAgent.transform as MapCallback)(dbValue, cursor.getPosition());
 			}
 			(<Array<unknown>>result).push(dbValue);
 		}
@@ -217,7 +217,7 @@ function* __processCursorReturnGenerator(cursor: android.database.Cursor, return
 		while (cursor.moveToNext()) {
 			const row = __getRowValues(cursor, returnType);
 			if (transformerAgent && transformerAgent.transform) {
-				yield (transformerAgent.transform as MapCallbackType)(row, cursor.getPosition()); continue;
+				yield (transformerAgent.transform as MapCallback)(row, cursor.getPosition()); continue;
 			}
 			yield row;
 		}
@@ -288,6 +288,10 @@ function __objectArrayToStringArray(params: Array<unknown>) {
 	const stringArray: Array<string> = [];
 	let value = null;
 	for (let i = 0, len = params.length; i < len; i++) {
+		if (Array.isArray(params[i])) {
+			stringArray.push((params[i] as Array<unknown>).join());
+			continue;
+		}
 		value = parseToDbValue(params[i]);
 		if (value === null) {
 			stringArray.push(value);

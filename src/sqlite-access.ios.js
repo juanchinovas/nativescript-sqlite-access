@@ -102,7 +102,13 @@ function __assembleScript(param) {
 }
 function __replaceQuestionMarkForParams(whereParams) {
     let counter = 0;
-    return () => parseToDbValue(whereParams[counter++]);
+    return () => {
+        const param = whereParams[counter++];
+        if (Array.isArray(param)) {
+            return param.join();
+        }
+        return parseToDbValue(param).toString();
+    };
 }
 function __processCursor(cursorRef, returnType, transformerAgent) {
     let result = (transformerAgent && transformerAgent.initialValue) || [];

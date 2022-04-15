@@ -8,8 +8,8 @@ import {
 	runInitialDbScript,
 	readDbValue,
 	TransformerType,
-	ReduceCallbackType,
-	MapCallbackType
+	ReduceCallback,
+	MapCallback
 } from "./sqlite-access.common";
 
 /**
@@ -94,7 +94,7 @@ class SqliteAccess implements IDatabase {
 	 * @param {string} sql SQL Query. `SELECT [COLUMNS,] FROM TABLE WHERE column1=? and column2=?`. WHERE clause can be omitted
 	 * @param {Array<unknown>} conditionParams - optional where params if there is not WHERE clause in the sql param
 	 *
-	 * @returns {QueryProcessor} QueryProcessor object that returns a Promise<Array<unknown>>
+	 * @returns {QueryProcessor<T>} QueryProcessor object that returns a Promise<Array<unknown>>
 	 */
 	select<T>(sql: string, conditionParams?: unknown[]): QueryProcessor<T> {
 		return new QueryProcessor<T>((transformerAgent, resolve, error) => {
@@ -124,7 +124,7 @@ class SqliteAccess implements IDatabase {
 	 * @param {string} orderBy - optional
 	 * @param {string} limit - optional
 	 *
-	 * @returns {QueryProcessor} QueryProcessor object that returns a Promise<Array<unknown>>
+	 * @returns {QueryProcessor<T>} QueryProcessor object that returns a Promise<Array<unknown>>
 	 */
 	query<T>(param: { tableName: string, columns?: string[], selection?: string, selectionArgs?: unknown[], groupBy?: string, orderBy?: string, limit?: string }): QueryProcessor<T> {
 		return new QueryProcessor<T>((transformerAgent, resolve, error) => {
@@ -233,7 +233,14 @@ function __assembleScript(param: { tableName: string, columns?: string[], select
  */
 function __replaceQuestionMarkForParams(whereParams: Array<unknown>): () => string {
 	let counter = 0;
-	return () =>  parseToDbValue(whereParams[counter++]) as string;
+	return () => {
+		const param = whereParams[counter++];
+		if (Array.isArray(param)) {
+			return (param as Array<unknown>).join();
+		}
+
+		return parseToDbValue(param).toString();
+	};
 }
 
 /** private function
@@ -244,7 +251,7 @@ function __replaceQuestionMarkForParams(whereParams: Array<unknown>): () => stri
  */
 function __processCursor(cursorRef: interop.Pointer, returnType: ReturnType, transformerAgent?: TransformerType) {
 	let result: Array<unknown> | unknown = (transformerAgent && transformerAgent.initialValue) || [];
-	let dbRow: unknown = null;
+	let dbRow = null;
 
 	if (sqlite3_data_count(cursorRef) > 0) {
 		let counter = 0;
@@ -252,10 +259,10 @@ function __processCursor(cursorRef: interop.Pointer, returnType: ReturnType, tra
 			dbRow = __getRowValues(cursorRef, returnType);
 			if (transformerAgent && transformerAgent.transform) {
 				if (transformerAgent.initialValue) {
-					result = (transformerAgent.transform as ReduceCallbackType)(result, dbRow, counter++);
+					result = (transformerAgent.transform as ReduceCallback)(result, dbRow, counter++);
 					continue;
 				}
-				dbRow = (transformerAgent.transform as MapCallbackType)(dbRow, counter++);
+				dbRow = (transformerAgent.transform as MapCallback)(dbRow, counter++);
 			}
 			(<Array<unknown>>result).push(dbRow);
 			// Condition on the while fixes issue #8
@@ -272,7 +279,8 @@ function* __processCursorGenerator(cursorRef: interop.Pointer, returnType: Retur
 		do {
 			const row = __getRowValues(cursorRef, returnType);
 			if (transformerAgent && transformerAgent.transform) {
-				yield (transformerAgent.transform as MapCallbackType)(row, counter++); continue;
+				yield (transformerAgent.transform as MapCallback)(row, counter++);
+				continue;
 			}
 			yield row;
 			// Condition on the while fixes issue #8

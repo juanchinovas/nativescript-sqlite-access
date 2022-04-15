@@ -46,7 +46,7 @@ export interface IDatabase {
 	 * @param {string} sql SQL Query. `SELECT [COLUMNS,] FROM TABLE WHERE column1=? and column2=?`. WHERE clause can be omitted
 	 * @param {Array<unknown>} conditionParams - optional if there is not WHERE clause in the sql param
 	 *
-	 * @returns {QueryProcessor} QueryProcessor object that returns a Promise<Array<unknown>>
+	 * @returns {QueryProcessor<T>} QueryProcessor object that returns a Promise<Array<unknown>>
 	 */
 	select<T>(sql: string, conditionParams?: Array<unknown>): QueryProcessor<T>;
 
@@ -62,7 +62,7 @@ export interface IDatabase {
 	 * @param {string} orderBy - optional
 	 * @param {string} limit - optional
 	 *
-	 * @returns {QueryProcessor} QueryProcessor object that returns a Promise<Array<unknown>>
+	 * @returns {QueryProcessor<T>} QueryProcessor object that returns a Promise<Array<unknown>>
 	 */
 	query<T>(param: {
 		tableName: string, columns?: Array<string>,
@@ -188,24 +188,27 @@ export class QueryProcessor<T> {
 		this._executorFn = executorFn;
 	}
 
-	process(transformer?: ReduceCallbackType | MapCallbackType, initialValue?: unknown): Promise<T> {
+	process(transformer?: MapCallback): Promise<T>;
+	process(transformer?: ReduceCallback, initialValue?: unknown): Promise<T>;
+	process(transformer?: ReduceCallback | MapCallback, initialValue?: unknown): Promise<T> {
 		const transformerAgent = { transform: transformer, initialValue, type: 0 };
-		return new Promise(this._executorFn.bind(null, transformerAgent));
+		return new Promise<T>(this._executorFn.bind(null, transformerAgent));
 	}
 
-	asGenerator(transformer?: MapCallbackType): Promise<IterableIterator<T>> {
+	asGenerator(transformer?: MapCallback): Promise<IterableIterator<T>> {
 		const transformerAgent = { transform: transformer, type: 1 };
-		return new Promise(this._executorFn.bind(null, transformerAgent));
+		return new Promise<IterableIterator<T>>(this._executorFn.bind(null, transformerAgent));
 	}
 }
+
 type ExecutorType = (
 	transformer: TransformerType,
 	resolve?: (args: unknown) => void,
 	reject?: (err: Error) => void
 ) => void;
-export type MapCallbackType = (row: unknown, index: number) => unknown;
-export type ReduceCallbackType = (accumulator: unknown, row: unknown, index: number) => unknown;
-export type TransformerType = { transform: ReduceCallbackType | MapCallbackType, initialValue?: unknown, type: number };
+export type MapCallback = (row: unknown, index: number) => unknown;
+export type ReduceCallback = (accumulator: unknown, row: unknown, index: number) => unknown;
+export type TransformerType = { transform: ReduceCallback | MapCallback, initialValue?: unknown, type: number };
 
 export enum FIELD_TYPE {
 	NULL = 0,
