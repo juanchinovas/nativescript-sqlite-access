@@ -93,6 +93,17 @@ insert(tableName: string, values: { [key: string]: unknown }): number;
 ```
 ```typescript
 /**
+ * Update or Insert a row into table. The table has to have at least one primary key column
+ *
+ * @param {string} tableName
+ * @param {{ [key: string]: unknown; }} values
+ *
+ * @returns {Promise<unknown>}  primary keys affected
+ */
+upsert(tableName: string, values: { [key: string]: unknown; }): Promise<unknown>;
+```
+```typescript
+/**
  * Replace row values in the table with the values (key = columns and values = columns value).
  * The table must has a primary column to match with
  *
@@ -201,12 +212,12 @@ close(): void;
  * The map and reduce functions are similar to the functions apply to an Array,
  */
 export declare class QueryProcessor<T> {
-    process(transformer?: ReduceCallback, initialValue?: unknown): Promise<T>;
-    process(transformer?: MapCallback): Promise<T>;
+    process<R>(transformer?: ReducerCallback<R>, initialValue?: R): Promise<T>;
+	process<R>(transformer?: MapCallback<R>): Promise<T>;
     asGenerator(transformer?: MapCallback): Promise<IterableIterator<T>>;
 }
-export declare type MapCallback = (row: unknown, index: number) => unknown;
-export declare type ReduceCallback = (accumulator: unknown, row: unknown, index: number) => unknown;
+export type MapCallback<R> = (row: unknown, index: number) => R;
+export type ReducerCallback<R> = ((accumulator: R, row: unknown, index: number) => R);
 ```
 
 ### Changes

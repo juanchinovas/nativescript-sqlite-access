@@ -8,6 +8,24 @@ class SqliteAccess {
     insert(tableName, values) {
         return this.db.insert(tableName, null, __mapToContentValues(values));
     }
+    async upsert(tableName, values) {
+        const keyColumns = await this.select(`pragma table_info('${tableName}')`).process((list, item) => {
+            if (item.pk) {
+                list.push(item.name);
+            }
+            return list;
+        }, []);
+        if (!keyColumns.length) {
+            throw new Error(`${tableName} doesn't have primary key columns`);
+        }
+        const whereClause = keyColumns.map(key => `${key}=?`).join(" AND ");
+        const whereArgs = keyColumns.map(key => values[key]);
+        const affectedRow = this.update(tableName, values, whereClause, whereArgs);
+        if (!affectedRow) {
+            return this.insert(tableName, values);
+        }
+        return (whereArgs.length === 1 && whereArgs.pop()) || whereArgs;
+    }
     replace(tableName, values) {
         return this.db.replace(tableName, null, __mapToContentValues(values));
     }

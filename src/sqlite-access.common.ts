@@ -9,6 +9,15 @@ export interface IDatabase {
 	 */
 	insert(tableName: string, values: { [key: string]: unknown }): number;
 	/**
+	 * Update or Insert a row into table. The table has to have at least one primary key column
+	 *
+	 * @param {string} tableName
+	 * @param {{ [key: string]: unknown; }} values
+	 *
+	 * @returns {Promise<unknown>}  primary keys affected
+	 */
+	upsert(tableName: string, values: { [key: string]: unknown; }): Promise<unknown>;
+	/**
 	 * Replace row values in the table with the values (key = columns and values = columns value).
 	 * The table must has a primary column to match with
 	 *
@@ -199,13 +208,13 @@ export class QueryProcessor<T> {
 
 	/**
 	 * Execute the SQL query, calls transformer function on each matched row if any
-	 * @param {ReduceCallback | MapCallback} transformer
+	 * @param {ReducerCallback | MapCallback} transformer
 	 * @param {unknown} initialValue  optional
 	 * @returns Promise<T>
 	 */
-	process(transformer?: ReduceCallback, initialValue?: unknown): Promise<T>;
-	process(transformer?: MapCallback): Promise<T>;
-	process(transformer?: ReduceCallback | MapCallback, initialValue?: unknown): Promise<T> {
+	process<R>(transformer?: ReducerCallback<R>, initialValue?: R): Promise<T>;
+	process<R>(transformer?: MapCallback<R>): Promise<T>;
+	process<R>(transformer?: ReducerCallback<R> | MapCallback<R>, initialValue?: R): Promise<T> {
 		const transformerAgent = { transform: transformer, initialValue, type: 0 };
 		return new Promise<T>(this._executorFn.bind(null, transformerAgent));
 	}
@@ -215,20 +224,21 @@ export class QueryProcessor<T> {
 	 * @param {MapCallback} transformer 
 	 * @returns Promise<IterableIterator<T>>
 	 */
-	asGenerator(transformer?: MapCallback): Promise<IterableIterator<T>> {
+	asGenerator<R>(transformer?: MapCallback<R>): Promise<IterableIterator<T>> {
 		const transformerAgent = { transform: transformer, type: 1 };
 		return new Promise<IterableIterator<T>>(this._executorFn.bind(null, transformerAgent));
 	}
 }
 
 type ExecutorType = (
-	transformer: TransformerType,
+	transformer: TransformerType<unknown>,
 	resolve?: (args: unknown) => void,
 	reject?: (err: Error) => void
 ) => void;
-export type MapCallback = (row: unknown, index: number) => unknown;
-export type ReduceCallback = (accumulator: unknown, row: unknown, index: number) => unknown;
-export type TransformerType = { transform: ReduceCallback | MapCallback, initialValue?: unknown, type: number };
+
+export type MapCallback<R> = (row: unknown, index: number) => R;
+export type ReducerCallback<R> = ((accumulator: R, row: unknown, index: number) => R);
+export type TransformerType<R> = { transform: ReducerCallback<R> | MapCallback<R>, initialValue?: R, type: number };
 
 export enum FIELD_TYPE {
 	NULL_ANDROID = 0,
@@ -271,6 +281,6 @@ export function replaceQuestionMark(target: string, values: Array<unknown>): str
 			return (param as Array<unknown>).join();
 		}
 
-		return parseToDbValue(param).toString();
+		return parseToDbValue(param) as string;
 	});
 }

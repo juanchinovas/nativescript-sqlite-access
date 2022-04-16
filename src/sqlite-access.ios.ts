@@ -8,7 +8,7 @@ import {
 	runInitialDbScript,
 	readDbValue,
 	TransformerType,
-	ReduceCallback,
+	ReducerCallback,
 	MapCallback,
 	replaceQuestionMark
 } from "./sqlite-access.common";
@@ -39,6 +39,35 @@ class SqliteAccess implements IDatabase {
 		return sqlite3_last_insert_rowid(this.db.value);
 	}
 
+	/**
+	 * Update or Insert a row into table. The table has to have at least one primary key column
+	 *
+	 * @param {string} tableName
+	 * @param {{ [key: string]: unknown; }} values
+	 *
+	 * @returns {Promise<unknown>}  primary keys affected
+	 */
+	async upsert(tableName: string, values: { [key: string]: unknown; }): Promise<unknown> {
+		const keyColumns = await this.select<Array<string>>(`pragma table_info('${tableName}')`).process(
+			(list, item: { [key: string]: unknown; }) => {
+				if (item.pk) {
+					list.push(item.name);
+				}
+				return list;
+			}, []);
+		
+		if (!keyColumns.length) {
+			throw new Error(`${tableName} doesn't have primary key columns`);
+		}
+		const whereClause = keyColumns.map(key => `${key}=?`).join(" AND ");
+		const whereArgs = keyColumns.map(key => values[key]);
+		const affectedRow = this.update(tableName, values, whereClause, whereArgs);
+		if (!affectedRow) {
+			return this.insert(tableName, values);
+		}
+
+		return (whereArgs.length === 1 && whereArgs.pop()) ||  whereArgs;
+	}
 	/**
 	 * Replace a row values in the table with the values (key = columns and values = columns value).
 	 * The table must has a primary column to match with
@@ -245,7 +274,7 @@ function __assembleScript(param: { tableName: string, columns?: string[], select
  * @param {TransformerType} transformerAgent  
  * @returns Array<unknown> | unknown
  */
-function __processCursor(cursorRef: interop.Pointer, returnType: ReturnType, transformerAgent?: TransformerType) {
+function __processCursor(cursorRef: interop.Pointer, returnType: ReturnType, transformerAgent?: TransformerType<unknown>) {
 	let result: Array<unknown> | unknown = (transformerAgent && transformerAgent.initialValue) || [];
 	let dbRow = null;
 
@@ -255,10 +284,10 @@ function __processCursor(cursorRef: interop.Pointer, returnType: ReturnType, tra
 			dbRow = __getRowValues(cursorRef, returnType);
 			if (transformerAgent && transformerAgent.transform) {
 				if (transformerAgent.initialValue) {
-					result = (transformerAgent.transform as ReduceCallback)(result, dbRow, counter++);
+					result = (transformerAgent.transform as ReducerCallback<unknown>)(result, dbRow, counter++);
 					continue;
 				}
-				dbRow = (transformerAgent.transform as MapCallback)(dbRow, counter++);
+				dbRow = (transformerAgent.transform as MapCallback<unknown>)(dbRow, counter++);
 			}
 			(<Array<unknown>>result).push(dbRow);
 			// Condition on the while fixes issue #8
@@ -279,13 +308,13 @@ function __processCursor(cursorRef: interop.Pointer, returnType: ReturnType, tra
  * @param {ReturnType} returnType 
  * @param {TransformerType} transformerAgent 
  */
-function* __processCursorGenerator(cursorRef: interop.Pointer, returnType: ReturnType, transformerAgent?: TransformerType) {
+function* __processCursorGenerator(cursorRef: interop.Pointer, returnType: ReturnType, transformerAgent?: TransformerType<unknown>) {
 	if (sqlite3_data_count(cursorRef) > 0) {
 		let counter = 0;
 		do {
 			const row = __getRowValues(cursorRef, returnType);
 			if (transformerAgent && transformerAgent.transform) {
-				yield (transformerAgent.transform as MapCallback)(row, counter++);
+				yield (transformerAgent.transform as MapCallback<unknown>)(row, counter++);
 				continue;
 			}
 			yield row;

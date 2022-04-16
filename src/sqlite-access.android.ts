@@ -9,7 +9,7 @@ import {
 	readDbValue,
 	MapCallback,
 	TransformerType,
-	ReduceCallback,
+	ReducerCallback,
 	replaceQuestionMark
 } from "./sqlite-access.common";
 
@@ -35,6 +35,36 @@ class SqliteAccess implements IDatabase {
 	 */
 	insert(tableName: string, values: { [key: string]: unknown; }): number {
 		return this.db.insert(tableName, null, __mapToContentValues(values));
+	}
+
+	/**
+	 * Update or Insert a row into table. The table has to have at least one primary key column
+	 *
+	 * @param {string} tableName
+	 * @param {{ [key: string]: unknown; }} values
+	 *
+	 * @returns {Promise<unknown>}  primary keys affected
+	 */
+	async upsert(tableName: string, values: { [key: string]: unknown; }): Promise<unknown> {
+		const keyColumns = await this.select<Array<string>>(`pragma table_info('${tableName}')`).process(
+			(list, item: { [key: string]: unknown; }) => {
+				if (item.pk) {
+					list.push(item.name);
+				}
+				return list;
+			}, []);
+
+		if (!keyColumns.length) {
+			throw new Error(`${tableName} doesn't have primary key columns`);
+		}
+		const whereClause = keyColumns.map(key => `${key}=?`).join(" AND ");
+		const whereArgs = keyColumns.map(key => values[key]);
+		const affectedRow = this.update(tableName, values, whereClause, whereArgs);
+		if (!affectedRow) {
+			return this.insert(tableName, values);
+		}
+
+		return (whereArgs.length === 1 && whereArgs.pop()) ||  whereArgs;
 	}
 
 	/**
@@ -193,7 +223,7 @@ class SqliteAccess implements IDatabase {
  *
  * @returns Array<unknown> | unknown;
  */
-function __processCursor(cursor: android.database.Cursor, returnType: ReturnType, transformerAgent?: TransformerType) {
+function __processCursor(cursor: android.database.Cursor, returnType: ReturnType, transformerAgent?: TransformerType<unknown>) {
 	let result: Array<unknown> | unknown = (transformerAgent && transformerAgent.initialValue) || [];
 	if (cursor.getCount() > 0) {
 		let dbValue = null;
@@ -201,10 +231,10 @@ function __processCursor(cursor: android.database.Cursor, returnType: ReturnType
 			dbValue = __getRowValues(cursor, returnType);
 			if (transformerAgent && transformerAgent.transform) {
 				if (transformerAgent.initialValue) {
-					result = (transformerAgent.transform as ReduceCallback)(result, dbValue, cursor.getPosition());
+					result = (transformerAgent.transform as ReducerCallback<unknown>)(result, dbValue, cursor.getPosition());
 					continue;
 				}
-				dbValue = (transformerAgent.transform as MapCallback)(dbValue, cursor.getPosition());
+				dbValue = (transformerAgent.transform as MapCallback<unknown>)(dbValue, cursor.getPosition());
 			}
 			(<Array<unknown>>result).push(dbValue);
 		}
@@ -223,12 +253,12 @@ function __processCursor(cursor: android.database.Cursor, returnType: ReturnType
  * @param {ReturnType} returnType 
  * @param {TransformerType} transformerAgent 
  */
-function* __processCursorReturnGenerator(cursor: android.database.Cursor, returnType: ReturnType, transformerAgent?: TransformerType) {
+function* __processCursorReturnGenerator(cursor: android.database.Cursor, returnType: ReturnType, transformerAgent?: TransformerType<unknown>) {
 	if (cursor.getCount() > 0) {
 		while (cursor.moveToNext()) {
 			const row = __getRowValues(cursor, returnType);
 			if (transformerAgent && transformerAgent.transform) {
-				yield (transformerAgent.transform as MapCallback)(row, cursor.getPosition()); continue;
+				yield (transformerAgent.transform as MapCallback<unknown>)(row, cursor.getPosition()); continue;
 			}
 			yield row;
 		}
@@ -285,31 +315,6 @@ function __openCreateDataBase(dbName: string, mode: number): android.database.sq
 
 	mode = mode | android.database.sqlite.SQLiteDatabase.CREATE_IF_NECESSARY;
 	return android.database.sqlite.SQLiteDatabase.openDatabase(file.getAbsolutePath(), null, mode);
-}
-
-/** private function
- * Turn an Array of unknown to Array of string to match android API
- * @param {Array<unknown>} params sql queries params
- * @returns Array<string>
- */
-function __objectArrayToStringArray(params: Array<unknown>) {
-	if (!params) return null;
-
-	const stringArray: Array<string> = [];
-	let value = null;
-	for (let i = 0, len = params.length; i < len; i++) {
-		if (Array.isArray(params[i])) {
-			stringArray.push(`"${(params[i] as Array<unknown>).join()}"`);
-			continue;
-		}
-		value = parseToDbValue(params[i]);
-		if (value === null) {
-			stringArray.push(value);
-			continue;
-		}
-		stringArray.push(value.toString().replace(/''/g, "'").replace(/^'|'$/g, ""));
-	}
-	return stringArray;
 }
 
 /**

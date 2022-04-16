@@ -6,6 +6,9 @@ declare class SqliteAccess implements IDatabase {
     insert(tableName: string, values: {
         [key: string]: unknown;
     }): number;
+    upsert(tableName: string, values: {
+        [key: string]: unknown;
+    }): Promise<unknown>;
     replace(tableName: string, values: {
         [key: string]: unknown;
     }): number;
