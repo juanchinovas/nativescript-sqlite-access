@@ -27,12 +27,10 @@
     import { Template } from "svelte-native/components"
     import { DbBuilder, IDatabase, DbCreationOptions } from 'nativescript-sqlite-access';
     import { version, databaseName, creationTableQueries, dropTableQueries, databaseTables } from "../db-setting";
-    let message: string = "Blank Svelte Native App"
     let text = '';
     let updateCounter = 0;
-    let items = [];
+    let items: Array<Record<string, unknown>> = [];
     let localDb: IDatabase;
-    let onMountCallTwice = false;
     let loading = true;
     
     function init() {
@@ -58,7 +56,7 @@
         reload();
     }
 
-    function remove(event) {
+    function remove(event: {index: number}) {
         localDb.beginTransact();
         let test = items[event.index];
         let deleted = localDb.delete(databaseTables.PERSONS, '_id=?', [test._id]);
@@ -78,19 +76,19 @@
     function reload() {
         if (!localDb) return;
         
-        const reducerFn = (acc, next) => {
+        const reducerFn = (acc: Record<string, string[]>, next: Record<string, unknown>) => {
             acc["name"] = acc["name"] || [];
-            acc["name"].push(next.name);
+            acc["name"].push(next.name as string);
             return acc;
         };
 
-        const mapFn = (next) => {
+        const mapFn = (next: Record<string, unknown>) => {
             return next.name;
         };
 
         console.log("------------- as select and reduce -------------");
         localDb.select(`SELECT * FROM ${databaseTables.PERSONS}`)
-        .reduce(reducerFn, {})
+        .process(reducerFn, {})
         .then(result => {
             console.log("Reducing.: ");
             console.log(result);
@@ -99,7 +97,7 @@
 
         console.log("------------- as query and map -------------");
         localDb.query({tableName: databaseTables.PERSONS})
-        .map(mapFn)
+        .process(mapFn)
         .then(result => {
             console.log("Mapping.: ");
             console.log(result);
@@ -108,17 +106,19 @@
 
 
         console.log("------------- as generator -------------");
-        const asGenerator = (localDb as any).queryAsCursor({tableName: databaseTables.PERSONS });
-        items = [];
-        const id = setInterval(() => {
-            const it = asGenerator.next();
-            if(it.done) {
-                clearInterval(id);
-                loading = false;
-                return;
-            }
-            items = [].concat(items, [it.value]);
-        }, 1000);
+        localDb.query({tableName: databaseTables.PERSONS }).asGenerator()
+		.then((asGenerator) => {
+			items = [];
+			const id = setInterval(() => {
+				const it = asGenerator.next();
+				if(it.done) {
+					clearInterval(id);
+					loading = false;
+					return;
+				}
+				items = [].concat(items, [it.value]);
+			}, 1000);
+		});
     }
     
     onMount(init);

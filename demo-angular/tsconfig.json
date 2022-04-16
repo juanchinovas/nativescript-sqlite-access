@@ -1,35 +1,27 @@
 {
-    "compilerOptions": {
-        "module": "esnext",
-        "target": "es2017",
-        "experimentalDecorators": true,
-        "emitDecoratorMetadata": true,
-        "noEmitHelpers": true,
-        "noEmitOnError": true,
-        "lib": [
-            "es6",
-            "dom",
-            "es2015.iterable",
-            "es2017"
-        ],
-        "baseUrl": ".",
-        "paths": {
-            "~/*": [
-                "src/*"
-            ],
-            "*": [
-                "./node_modules/*"
-            ]
-        },
-        "moduleResolution": "node",
-        "removeComments": false
-    },
-    "exclude": [
-        "node_modules",
-        "platforms"
-    ],
-    "include": [
-        "../src",
-        "**/*"
-    ]
+  "compilerOptions": {
+    "module": "esnext",
+    "target": "es2017",
+    "moduleResolution": "node",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "noEmitHelpers": true,
+    "noEmitOnError": true,
+    "skipLibCheck": true,
+    "lib": ["es2017", "dom"],
+    "baseUrl": ".",
+    "paths": {
+      "~/*": ["src/*"],
+      "@/*": ["src/*", "./node_modules/*"]
+    }
+  },
+  "include": [
+	  "src/tests/**/*.ts",
+	  "src/**/*.ios.ts",
+	  "src/**/*.android.ts",
+	  "/Users/juanchinovas/nativescript/nativescript-sqlite-access/src/sqlite-access.android.ts",
+	  "/Users/juanchinovas/nativescript/nativescript-sqlite-access/src/sqlite-access.ios.ts"
+	],
+  "files": ["./src/main.ts", "./references.d.ts", "./src/polyfills.ts"],
+  "exclude": ["node_modules", "platforms", "e2e"]
 }

@@ -4,11 +4,10 @@ import { databaseName, creationTableQueries, dropTableQueries, databaseTables } 
 
 @Component({
     selector: "ns-home",
-    moduleId: module.id,
-    templateUrl: "./home.component.html"
+    templateUrl: "home.component.html"
 })
 export class HomeComponent implements OnInit {
-    items: Array<any>;
+    items: Array<Record<string, unknown>>;
     text: string = "";
     hint: string = 'Name something here';
     private db: IDatabase;
@@ -33,7 +32,7 @@ export class HomeComponent implements OnInit {
     }
 
     addText() {
-        let id = this.db.insert(databaseTables.PERSONS, {
+        this.db.insert(databaseTables.PERSONS, {
             name: this.text,
             n: { No: "po' si" },
             i: 1 * ++this.updateCounter
@@ -62,7 +61,7 @@ export class HomeComponent implements OnInit {
     reload() {
         this.db.select(`SELECT * FROM ${databaseTables.PERSONS}`, null).process()
         .then(result => {
-            this.items = result;
+            this.items = result as Array<Record<string, unknown>>;
         })
         .catch(err => {
             console.log(err);
@@ -80,7 +79,7 @@ export class HomeComponent implements OnInit {
         };
 
         this.db.query({ tableName: databaseTables.PERSONS })
-        .reduce(reducerFn, {})
+        .process(reducerFn, {})
         .then(result => {
             console.log("Reducing.: ");
             console.log(result);
@@ -88,12 +87,11 @@ export class HomeComponent implements OnInit {
         .catch(console.error);
 
         this.db.query({ tableName: databaseTables.PERSONS })
-        .map(mapFn)
+        .process(mapFn)
         .then(result => {
             console.log("Mapping.: ");
             console.log(result);
         })
         .catch(console.error);
     }
-
 }

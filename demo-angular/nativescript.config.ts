@@ -1,12 +1,11 @@
-import { NativeScriptConfig } from '@nativescript/core'
+import { NativeScriptConfig } from '@nativescript/core';
 
 export default {
-  id: 'org.nativescript.sqliteacces',
+  id: 'org.nativescript.demoangularb',
   appPath: 'src',
   appResourcesPath: 'App_Resources',
   android: {
     v8Flags: '--expose_gc',
-    markingMode: 'none',
-  },
-  useLegacyWorkflow: false,
-} as NativeScriptConfig
+    markingMode: 'none'
+  }
+} as NativeScriptConfig;
