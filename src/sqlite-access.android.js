@@ -146,25 +146,6 @@ function __openCreateDataBase(dbName, mode) {
     mode = mode | android.database.sqlite.SQLiteDatabase.CREATE_IF_NECESSARY;
     return android.database.sqlite.SQLiteDatabase.openDatabase(file.getAbsolutePath(), null, mode);
 }
-function __objectArrayToStringArray(params) {
-    if (!params)
-        return null;
-    const stringArray = [];
-    let value = null;
-    for (let i = 0, len = params.length; i < len; i++) {
-        if (Array.isArray(params[i])) {
-            stringArray.push(`"${params[i].join()}"`);
-            continue;
-        }
-        value = parseToDbValue(params[i]);
-        if (value === null) {
-            stringArray.push(value);
-            continue;
-        }
-        stringArray.push(value.toString().replace(/''/g, "'").replace(/^'|'$/g, ""));
-    }
-    return stringArray;
-}
 function __mapToContentValues(values) {
     const contentValues = new android.content.ContentValues();
     let value = null;
