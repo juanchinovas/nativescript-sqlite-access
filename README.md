@@ -14,7 +14,12 @@ Just a NativeScript plugin to access and manage data with sqlite on ![apple](htt
 Run the following command from the root of your project:
 
 ```bash
-tns plugin add nativescript-sqlite-access
+tns plugin add nativescript-sqlite-access@1.0.81
+```
+`@nativescript/core?`
+
+```bash
+tns plugin add nativescript-sqlite-access@1.1.0
 ```
 The command above automatically installs the necessary files, as well as stores nativescript-sqlite-access as a dependency in your project's package.json file.
 
@@ -77,83 +82,85 @@ export class HomeViewModel {
 ## API
 ```typescript
 /**
-* Insert a row into table with the values (key = columns and values = columns value)
-*
-* @param {string} tableName
-* @param {{ [key: string]: any; }} values
-*
-* @returns {number}  id inserted
-*/
-
-insert(tableName: string, values: { [key: string]: any }): number;
+ * Insert row into table with the values (key = columns and values = columns value)
+ *
+ * @param {string} tableName
+ * @param {{ [key: string]: unknown; }} values
+ *
+ * @returns {number}  id inserted
+ */
+insert(tableName: string, values: { [key: string]: unknown }): number;
 ```
 ```typescript
 /**
-* Replace a row values in the table with the values (key = columns and values = columns value).
-* The table must has a primary column to match with
-*
-* @param {string} tableName
-* @param {{ [key: string]: any; }} values
-*
-* @returns {number} rows affected
-*/
-replace(tableName: string, values: { [key: string]: any }): number;
+ * Replace row values in the table with the values (key = columns and values = columns value).
+ * The table must has a primary column to match with
+ *
+ * @param {string} tableName
+ * @param {{ [key: string]: unknown; }} values
+ *
+ * @returns {number} affected rows
+ */
+replace(tableName: string, values: { [key: string]: unknown }): number;
 ```
 ```typescript
 /**
-* Update a row values in the table with the values (key = columns and values = columns value) to the matched row.
-*
-* @param {string} tableName
-* @param {{ [key: string]: any; }} values
-* @param {string} whereClause
-* @param {Array<any>} whereArs
-*
-* @returns {number} rows affected
-*/
-update(tableName: string, values: { [key: string]: any }, whereClause: string, whereArs: Array<any>): number;
+ * Update row values in the table with the values (key = columns and values = columns value) to the matched row.
+ *
+ * @param {string} tableName
+ * @param {{ [key: string]: unknown; }} values
+ * @param {string} whereClause
+ * @param {Array<unknown>} whereArs
+ *
+ * @returns {number} affected rows
+ */
+update(tableName: string, values: { [key: string]: unknown }, whereClause: string, whereArs: Array<unknown>): number;
 ```
 ```typescript
 /**
-* Delete rows or a row from the table that matches the condition.
-*
-* @param {string} tableName
-* @param {string} whereClause - optional
-* @param {Array<any>} whereArs - optional
-*
-* @returns {number} rows affected
-*/
-delete(tableName: string, whereClause?: string, whereArs?: Array<any>): number;
+ * Delete rows or a row from the table that matches the condition.
+ *
+ * @param {string} tableName
+ * @param {string} whereClause
+ * @param {Array<unknown>} whereArs
+ *
+ * @returns {number} affected rows
+ */
+delete(tableName: string, whereClause?: string, whereArs?: Array<unknown>): number;
 ```
 ```typescript
 /**
-* Query the table data that matches the condition.
-* @see ExtendedPromise for more information.
-* 
-* @param {string} sql SQL Query. `SELECT [COLUMNS,] FROM TABLE WHERE column1=? and column2=?`. WHERE clause can be omitted
-* @param {Array<any>} conditionParams - optional if there is not WHERE clause in the sql param
-*
-* @returns {ExtendedPromise} ExtendedPromise object that returns a Promise<Array<any>>
-*/
-select(sql: string, conditionParams?: Array<any>): ExtendedPromise;
+ * Execute a query, return QueryProcessor.
+ * @see QueryProcessor for more information.
+ *
+ * @param {string} sql SQL Query. `SELECT [COLUMNS,] FROM TABLE WHERE column1=? and column2=?`. WHERE clause can be omitted
+ * @param {Array<unknown>} conditionParams - optional if there is not WHERE clause in the sql param
+ *
+ * @returns {QueryProcessor<T>}
+ */
+select<T>(sql: string, conditionParams?: Array<unknown>): QueryProcessor<T>;
 ```
 ```typescript
 /**
-* Execute a query selector with the params passed in
-* @see ExtendedPromise for more information.
-* 
-* @param {string} tableName
-* @param {Array<string>} columns - optional
-* @param {string} selection - optional
-* @param {Array<string>} selectionArgs - optional
-* @param {string} groupBy - optional
-* @param {string} orderBy - optional
-* @param {string} limit - optional
-*
-* @returns {ExtendedPromise} ExtendedPromise object that returns a Promise<Array<any>>
-*/
-query(tableName: string, columns?: Array<string>,
-    selection?: string, selectionArgs?: Array<any>,
-    groupBy?: string, orderBy?: string, limit?: string): ExtendedPromise;
+ * Query the given table, return QueryProcessor
+ * @see QueryProcessor for more information.
+ *
+ * @param {string} param.tableName
+ * @param {Array<string>} param.columns
+ * @param {string} param.selection
+ * @param {Array<unknown>} param.selectionArgs
+ * @param {string} param.groupBy
+ * @param {string} param.having
+ * @param {string} param.orderBy
+ * @param {string} param.limit
+ *
+ * @returns {QueryProcessor<T>}
+ */
+query<T>(param: {
+	tableName: string, columns?: Array<string>,
+	selection?: string, selectionArgs?: Array<unknown>,
+	groupBy?: string, having?: string, orderBy?: string, limit?: string
+}): QueryProcessor<T>;
 ```
 ```typescript
 /**
@@ -187,27 +194,26 @@ rollback(): void;
 close(): void;
 ```
 
-> `select` and `query` function return a `ExtendedPromise` in  v1.0.8.
+> `select` and `query` function returns a `QueryProcessor` in  v1.1.0
 ```typescript
 /**
- * Let it add preprocessing function to each row matched by SQL query, each function return a Promise object.
- * The map and reduce functions are similar to the functions apply to an Array, 
- * just one preprocessing function is apply to the data per call.
- * The process function is call just if the map or reduce function will not be apply.
+ * Let you add preprocessing function to each matched row by SQL query.
+ * The map and reduce functions are similar to the functions apply to an Array,
  */
-class ExtendedPromise {
-
-    map(callback): Promise<any>;
-
-    reduce(callback, initialValue: any): Promise<any>;
-
-    process(): Promise<any>;
+export declare class QueryProcessor<T> {
+    process(transformer?: ReduceCallback, initialValue?: unknown): Promise<T>;
+    process(transformer?: MapCallback): Promise<T>;
+    asGenerator(transformer?: MapCallback): Promise<IterableIterator<T>>;
 }
+export declare type MapCallback = (row: unknown, index: number) => unknown;
+export declare type ReduceCallback = (accumulator: unknown, row: unknown, index: number) => unknown;
 ```
 
 ### Changes
 
-v1.0.8
-- Fixes the wrong import file in the index file.
-- parameter reduceFn was remove from `select` function.
-- `select` and `query` function return a `ExtendedPromise` that let you add a map or reduce function to each matched rows.
+v1.1.0 `!!Braking changes`
+- `ExtendedPromise` renamed to `QueryProcessor<T>`
+- `map` and `reduce` functions were removed from `QueryProcessor<T>`.
+- `asGenerator` NEW function on `QueryProcessor<T>` allow you to read rows one by one from the db and pass in a row transformer function
+- `process` function allow you to `*transform*` or `*reduce*` the result.
+- Android and iOS minor fixes.

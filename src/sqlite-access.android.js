@@ -1,26 +1,26 @@
 import { Application } from "@nativescript/core";
-import { parseToDbValue, QueryProcessor, runInitialDbScript, readDbValue } from "./sqlite-access.common";
+import { parseToDbValue, QueryProcessor, runInitialDbScript, readDbValue, replaceQuestionMark } from "./sqlite-access.common";
 class SqliteAccess {
     constructor(db, returnType) {
         this.db = db;
         this.returnType = returnType;
     }
-    insert(table, values) {
-        return this.db.insert(table, null, __mapToContentValues(values));
+    insert(tableName, values) {
+        return this.db.insert(tableName, null, __mapToContentValues(values));
     }
-    replace(table, values) {
-        return this.db.replace(table, null, __mapToContentValues(values));
+    replace(tableName, values) {
+        return this.db.replace(tableName, null, __mapToContentValues(values));
     }
-    update(table, values, whereClause, whereArs) {
-        return this.db.update(table, __mapToContentValues(values), whereClause, __objectArrayToStringArray(whereArs));
+    update(tableName, values, whereClause, whereArgs) {
+        return this.db.update(tableName, __mapToContentValues(values), replaceQuestionMark(whereClause, whereArgs), null);
     }
-    delete(table, whereClause, whereArgs) {
-        return this.db.delete(table, whereClause, __objectArrayToStringArray(whereArgs));
+    delete(tableName, whereClause, whereArgs) {
+        return this.db.delete(tableName, replaceQuestionMark(whereClause, whereArgs), null);
     }
     select(sql, params) {
         return new QueryProcessor((transformerAgent, resolve, reject) => {
             try {
-                const cursor = this.db.rawQuery(sql, __objectArrayToStringArray(params));
+                const cursor = this.db.rawQuery(replaceQuestionMark(sql, params) || sql, null);
                 if (transformerAgent && transformerAgent.type === 1) {
                     return resolve(__processCursorReturnGenerator(cursor, this.returnType, transformerAgent));
                 }
@@ -34,7 +34,7 @@ class SqliteAccess {
     query(param) {
         return new QueryProcessor((transformerAgent, resolve, error) => {
             try {
-                const cursor = this.db.query(param.tableName, param.columns, param.selection, __objectArrayToStringArray(param.selectionArgs), param.groupBy, param.orderBy, param.limit);
+                const cursor = this.db.query(param.tableName, param.columns, replaceQuestionMark(param.selection, param.selectionArgs), null, param.groupBy, param.having, param.orderBy, param.limit);
                 if (transformerAgent && transformerAgent.type === 1) {
                     return resolve(__processCursorReturnGenerator(cursor, this.returnType, transformerAgent));
                 }
@@ -135,7 +135,7 @@ function __objectArrayToStringArray(params) {
     let value = null;
     for (let i = 0, len = params.length; i < len; i++) {
         if (Array.isArray(params[i])) {
-            stringArray.push(params[i].join());
+            stringArray.push(`"${params[i].join()}"`);
             continue;
         }
         value = parseToDbValue(params[i]);

@@ -1,5 +1,5 @@
 import { knownFolders } from "@nativescript/core/file-system";
-import { parseToDbValue, QueryProcessor, runInitialDbScript, readDbValue } from "./sqlite-access.common";
+import { parseToDbValue, QueryProcessor, runInitialDbScript, readDbValue, replaceQuestionMark } from "./sqlite-access.common";
 class SqliteAccess {
     constructor(db, returnType) {
         this.db = db;
@@ -7,30 +7,28 @@ class SqliteAccess {
     }
     insert(tableName, values) {
         this.execSQL(`INSERT INTO ${tableName} (${Object.keys(values).join(",")}) VALUES(${__mapToAddOrUpdateValues(values, true)})`);
-        const value = sqlite3_last_insert_rowid(this.db.value);
-        return Number(value);
+        return sqlite3_last_insert_rowid(this.db.value);
     }
     replace(tableName, values) {
         this.execSQL(`REPLACE INTO ${tableName} (${Object.keys(values).join(",")}) VALUES(${__mapToAddOrUpdateValues(values, true)})`);
-        const value = sqlite3_changes(this.db.value);
-        return Number(value);
+        return sqlite3_last_insert_rowid(this.db.value);
     }
-    update(tableName, values, whereClause, whereArs) {
-        whereClause = (whereClause && "WHERE " + whereClause.replace(/\?/g, __replaceQuestionMarkForParams(whereArs))) || "";
+    update(tableName, values, whereClause, whereArgs) {
+        const condition = replaceQuestionMark(whereClause, whereArgs);
+        whereClause = (condition && "WHERE " + condition) || "";
         this.execSQL(`UPDATE ${tableName} SET ${__mapToAddOrUpdateValues(values, false)} ${whereClause}`);
-        const value = sqlite3_changes(this.db.value);
-        return Number(value);
+        return sqlite3_changes(this.db.value);
     }
     delete(tableName, whereClause, whereArgs) {
-        whereClause = (whereClause && "WHERE " + whereClause.replace(/\?/g, __replaceQuestionMarkForParams(whereArgs))) || "";
+        const condition = replaceQuestionMark(whereClause, whereArgs);
+        whereClause = (condition && "WHERE " + condition) || "";
         this.execSQL(`DELETE FROM ${tableName} ${whereClause}`);
-        const value = sqlite3_changes(this.db.value);
-        return Number(value);
+        return sqlite3_changes(this.db.value);
     }
     select(sql, conditionParams) {
         return new QueryProcessor((transformerAgent, resolve, error) => {
             try {
-                sql = sql.replace(/\?/g, __replaceQuestionMarkForParams(conditionParams));
+                sql = replaceQuestionMark(sql, conditionParams);
                 const cursor = __execQueryAndReturnStatement(sql, this.db);
                 if (transformerAgent && transformerAgent.type === 1) {
                     return resolve(__processCursorGenerator(cursor, this.returnType, transformerAgent));
@@ -93,22 +91,14 @@ function __execQueryAndReturnStatement(sql, dbPointer) {
     return cursorRef.value;
 }
 function __assembleScript(param) {
-    param.selection = (param.selection && "WHERE " + param.selection.replace(/\?/g, __replaceQuestionMarkForParams(param.selectionArgs))) || "";
+    const condition = replaceQuestionMark(param.selection, param.selectionArgs);
+    param.selection = (condition && "WHERE " + condition) || "";
     param.groupBy = (param.groupBy && "GROUP BY " + param.groupBy) || "";
+    param.having = (param.having && "HAVING " + param.having) || "";
     param.orderBy = (param.orderBy && "ORDER BY " + param.orderBy) || "";
     param.limit = (param.limit && "LIMIT " + param.limit) || "";
     const _columns = (param.columns && param.columns.join(",")) || `${param.tableName}.*`;
-    return `SELECT ${_columns} FROM ${param.tableName} ${param.selection} ${param.groupBy} ${param.orderBy} ${param.limit}`;
-}
-function __replaceQuestionMarkForParams(whereParams) {
-    let counter = 0;
-    return () => {
-        const param = whereParams[counter++];
-        if (Array.isArray(param)) {
-            return param.join();
-        }
-        return parseToDbValue(param).toString();
-    };
+    return `SELECT ${_columns} FROM ${param.tableName} ${param.selection} ${param.groupBy} ${param.having} ${param.orderBy} ${param.limit}`;
 }
 function __processCursor(cursorRef, returnType, transformerAgent) {
     let result = (transformerAgent && transformerAgent.initialValue) || [];
@@ -186,6 +176,22 @@ function __mapToAddOrUpdateValues(values, inserting) {
     }
     return contentValues.join(",");
 }
+function __dbVersion(db, version) {
+    const sql = "PRAGMA user_version";
+    if (isNaN(version)) {
+        version = __execQueryReturnOneArrayRow(db, sql).pop();
+    }
+    else {
+        const cursorRef = __execQueryAndReturnStatement(`${sql}=${version}`, db);
+        sqlite3_finalize(cursorRef);
+    }
+    return version;
+}
+function __execQueryReturnOneArrayRow(db, query) {
+    const cursorRef = __execQueryAndReturnStatement(query, db);
+    const result = __processCursor(cursorRef, 1);
+    return result.shift();
+}
 export function DbBuilder(dbName, options) {
     if (!dbName)
         throw new Error("Must specify a db name");
@@ -210,22 +216,6 @@ export function DbBuilder(dbName, options) {
         throw error;
     }
     return new SqliteAccess(db, options.returnType);
-}
-function __dbVersion(db, version) {
-    const sql = "PRAGMA user_version";
-    if (isNaN(version)) {
-        version = __execQueryReturnOneArrayRow(db, sql).pop();
-    }
-    else {
-        const cursorRef = __execQueryAndReturnStatement(`${sql}=${version}`, db);
-        sqlite3_finalize(cursorRef);
-    }
-    return version;
-}
-function __execQueryReturnOneArrayRow(db, query) {
-    const cursorRef = __execQueryAndReturnStatement(query, db);
-    const result = __processCursor(cursorRef, 1);
-    return result.shift();
 }
 export * from "./sqlite-access.common";
 //# sourceMappingURL=sqlite-access.ios.js.map

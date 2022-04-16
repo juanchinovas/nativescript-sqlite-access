@@ -9,7 +9,8 @@ import {
 	readDbValue,
 	TransformerType,
 	ReduceCallback,
-	MapCallback
+	MapCallback,
+	replaceQuestionMark
 } from "./sqlite-access.common";
 
 /**
@@ -35,8 +36,7 @@ class SqliteAccess implements IDatabase {
 	 */
 	insert(tableName: string, values: { [key: string]: unknown; }): number {
 		this.execSQL(`INSERT INTO ${tableName} (${Object.keys(values).join(",")}) VALUES(${__mapToAddOrUpdateValues(values, true)})`);
-		const value = sqlite3_last_insert_rowid(this.db.value);
-		return Number(value);
+		return sqlite3_last_insert_rowid(this.db.value);
 	}
 
 	/**
@@ -50,8 +50,7 @@ class SqliteAccess implements IDatabase {
 	 */
 	replace(tableName: string, values: { [key: string]: unknown; }): number {
 		this.execSQL(`REPLACE INTO ${tableName} (${Object.keys(values).join(",")}) VALUES(${__mapToAddOrUpdateValues(values, true)})`);
-		const value = sqlite3_changes(this.db.value);
-		return Number(value);
+		return sqlite3_last_insert_rowid(this.db.value);
 	}
 
 	/**
@@ -60,15 +59,15 @@ class SqliteAccess implements IDatabase {
 	 * @param {string} tableName
 	 * @param {{ [key: string]: unknown; }} values
 	 * @param {string} whereClause
-	 * @param {Array<unknown>} whereArs
+	 * @param {Array<unknown>} whereArgs
 	 *
 	 * @returns {number} rows affected
 	 */
-	update(tableName: string, values: { [key: string]: unknown; }, whereClause: string, whereArs: unknown[]): number {
-		whereClause = (whereClause && "WHERE " + whereClause.replace(/\?/g, __replaceQuestionMarkForParams(whereArs))) || "";
+	update(tableName: string, values: { [key: string]: unknown; }, whereClause: string, whereArgs: unknown[]): number {
+		const condition = replaceQuestionMark(whereClause, whereArgs);
+		whereClause = (condition && "WHERE " + condition) || "";
 		this.execSQL(`UPDATE ${tableName} SET ${__mapToAddOrUpdateValues(values, false)} ${whereClause}`);
-		const value = sqlite3_changes(this.db.value);
-		return Number(value);
+		return sqlite3_changes(this.db.value);
 	}
 
 	/**
@@ -81,10 +80,10 @@ class SqliteAccess implements IDatabase {
 	 * @returns {number} rows affected
 	 */
 	delete(tableName: string, whereClause?: string, whereArgs?: unknown[]): number {
-		whereClause = (whereClause && "WHERE " + whereClause.replace(/\?/g, __replaceQuestionMarkForParams(whereArgs))) || "";
+		const condition = replaceQuestionMark(whereClause, whereArgs);
+		whereClause = (condition && "WHERE " + condition) || "";
 		this.execSQL(`DELETE FROM ${tableName} ${whereClause}`);
-		const value = sqlite3_changes(this.db.value);
-		return Number(value);
+		return sqlite3_changes(this.db.value);
 	}
 
 	/**
@@ -94,12 +93,12 @@ class SqliteAccess implements IDatabase {
 	 * @param {string} sql SQL Query. `SELECT [COLUMNS,] FROM TABLE WHERE column1=? and column2=?`. WHERE clause can be omitted
 	 * @param {Array<unknown>} conditionParams - optional where params if there is not WHERE clause in the sql param
 	 *
-	 * @returns {QueryProcessor<T>} QueryProcessor object that returns a Promise<Array<unknown>>
+	 * @returns {QueryProcessor<T>}
 	 */
 	select<T>(sql: string, conditionParams?: unknown[]): QueryProcessor<T> {
 		return new QueryProcessor<T>((transformerAgent, resolve, error) => {
 			try {
-				sql = sql.replace(/\?/g, __replaceQuestionMarkForParams(conditionParams));
+				sql = replaceQuestionMark(sql, conditionParams);
 				const cursor = __execQueryAndReturnStatement(sql, this.db);
 				if (transformerAgent && transformerAgent.type === 1 /*Generator*/) {
 					return resolve(__processCursorGenerator(cursor, this.returnType, transformerAgent));
@@ -116,17 +115,18 @@ class SqliteAccess implements IDatabase {
 	 * Execute a query selector with the params passed in
 	 * @see QueryProcessor for more information.
 	 *
-	 * @param {string} tableName
-	 * @param {Array<string>} columns - optional
-	 * @param {string} selection - optional
-	 * @param {Array<string>} selectionArgs - optional
-	 * @param {string} groupBy - optional
-	 * @param {string} orderBy - optional
-	 * @param {string} limit - optional
+	 * @param {string} param.tableName
+	 * @param {Array<string>} param.columns
+	 * @param {string} param.selection
+	 * @param {Array<unknown>} param.selectionArgs
+	 * @param {string} param.groupBy
+	 * @param {string} param.having
+	 * @param {string} param.orderBy
+	 * @param {string} param.limit
 	 *
-	 * @returns {QueryProcessor<T>} QueryProcessor object that returns a Promise<Array<unknown>>
+	 * @returns {QueryProcessor<T>}
 	 */
-	query<T>(param: { tableName: string, columns?: string[], selection?: string, selectionArgs?: unknown[], groupBy?: string, orderBy?: string, limit?: string }): QueryProcessor<T> {
+	query<T>(param: { tableName: string, columns?: string[], selection?: string, selectionArgs?: unknown[], groupBy?: string, having?: string, orderBy?: string, limit?: string }): QueryProcessor<T> {
 		return new QueryProcessor<T>((transformerAgent, resolve, error) => {
 			try {
 				const cursor = __execQueryAndReturnStatement(__assembleScript(param), this.db);
@@ -214,40 +214,36 @@ function __execQueryAndReturnStatement(sql: string, dbPointer: interop.Reference
 	return cursorRef.value;
 }
 
-function __assembleScript(param: { tableName: string, columns?: string[], selection?: string, selectionArgs?: unknown[], groupBy?: string, orderBy?: string, limit?: string }) {
-	param.selection = (param.selection && "WHERE " + param.selection.replace(/\?/g, __replaceQuestionMarkForParams(param.selectionArgs))) || "";
+/**
+ * Generate SELECT query
+ * @param {string} param.tableName
+ * @param {Array<string>} param.columns
+ * @param {string} param.selection
+ * @param {Array<unknown>} param.selectionArgs
+ * @param {string} param.groupBy
+ * @param {string} param.orderBy
+ * @param {string} param.limit
+ * 
+ * @returns string
+ */
+function __assembleScript(param: { tableName: string, columns?: string[], selection?: string, selectionArgs?: unknown[], groupBy?: string, orderBy?: string, having?: string, limit?: string }) {
+	const condition = replaceQuestionMark(param.selection, param.selectionArgs);
+	param.selection = (condition && "WHERE " + condition) || "";
 	param.groupBy = (param.groupBy && "GROUP BY " + param.groupBy) || "";
+	param.having = (param.having && "HAVING " + param.having) || "";
 	param.orderBy = (param.orderBy && "ORDER BY " + param.orderBy) || "";
 	param.limit = (param.limit && "LIMIT " + param.limit) || "";
 	const _columns = (param.columns && param.columns.join(",")) || `${param.tableName}.*`;
 
-	return `SELECT ${_columns} FROM ${param.tableName} ${param.selection} ${param.groupBy} ${param.orderBy} ${param.limit}`;
+	return `SELECT ${_columns} FROM ${param.tableName} ${param.selection} ${param.groupBy} ${param.having} ${param.orderBy} ${param.limit}`;
 }
 
-/** private function
- * Return a function to replace the question mark in the
- * query ith the values
- *
- * @param whereParams Array<unknown>
- * @returns ()=>string|number
- */
-function __replaceQuestionMarkForParams(whereParams: Array<unknown>): () => string {
-	let counter = 0;
-	return () => {
-		const param = whereParams[counter++];
-		if (Array.isArray(param)) {
-			return (param as Array<unknown>).join();
-		}
-
-		return parseToDbValue(param).toString();
-	};
-}
-
-/** private function
- * Curring function to loop sqlite cursor
- * @param cursor interop.Reference<interop.Pointer>
- *
- * @returns (returnType: ReturnType) => Array<unknown>;
+/**
+ * Read dataset
+ * @param {interop.Pointer} cursorRef 
+ * @param {ReturnType} returnType 
+ * @param {TransformerType} transformerAgent  
+ * @returns Array<unknown> | unknown
  */
 function __processCursor(cursorRef: interop.Pointer, returnType: ReturnType, transformerAgent?: TransformerType) {
 	let result: Array<unknown> | unknown = (transformerAgent && transformerAgent.initialValue) || [];
@@ -273,6 +269,16 @@ function __processCursor(cursorRef: interop.Pointer, returnType: ReturnType, tra
 	return result;
 }
 
+/**
+ * Process each row
+ * @generator
+ * @function __processCursorGenerator
+ * @yields {unknown} row
+ * 
+ * @param {interop.Pointer} cursorRef 
+ * @param {ReturnType} returnType 
+ * @param {TransformerType} transformerAgent 
+ */
 function* __processCursorGenerator(cursorRef: interop.Pointer, returnType: ReturnType, transformerAgent?: TransformerType) {
 	if (sqlite3_data_count(cursorRef) > 0) {
 		let counter = 0;
@@ -294,9 +300,9 @@ function* __processCursorGenerator(cursorRef: interop.Pointer, returnType: Retur
  * Process the sqlite cursor and return a
  * js object with column/value or an array row
  *
- * @param cursor interop.Reference<unknown>
- * @param returnType ReturnType
- * @returns JS array of object like {[column:string]: unknown} or array
+ * @param {interop.Reference<unknown>} cursor
+ * @param {ReturnType} returnType
+ * @returns {Array<unknown> | Record<string, unknown>}
  */
 function __getRowValues(cursor: interop.Pointer, returnType: ReturnType): Array<unknown> | Record<string, unknown> {
 
@@ -323,10 +329,10 @@ function __getRowValues(cursor: interop.Pointer, returnType: ReturnType): Array<
 
 /** private function
  * open or create a read-write database, permanently or in memory
- * @param dbName string database name
- * @param mode number openness mode
+ * @param {string} dbName database name
+ * @param {number} mode openness mode
  *
- * @returns interop.Reference<unknown> sqlite3*
+ * @returns interop.Reference<interop.Pointer> sqlite3*
  *
  * @throws
  * if sqlite3_open_v2 returned code !== 0
@@ -352,8 +358,8 @@ function __openOrCreateDataBase(dbName: string, mode: number) {
 
 /**
  * Map a key/value JS object to Array<string>
- * @param values { [key: string]: unknown; }
- * @param inserting boolean
+ * @param { unknown } values.key
+ * @param {boolean} inserting
  *
  * @returns string
  */
@@ -369,11 +375,43 @@ function __mapToAddOrUpdateValues(values: { [key: string]: unknown; }, inserting
 }
 
 /**
+ * Get or set the database user_version
+ * @param db sqlite3*
+ * @param version number
+ *
+ * @returns number|undefined
+ */
+function __dbVersion(db: interop.Reference<interop.Pointer>, version?: number) {
+	const sql = "PRAGMA user_version";
+
+	if (isNaN(version)) {
+		version = __execQueryReturnOneArrayRow(db, sql).pop() as number;
+	} else {
+		const cursorRef = __execQueryAndReturnStatement(`${sql}=${version}`, db);
+		sqlite3_finalize(cursorRef);
+	}
+	return version;
+}
+
+/**
+ * Execute a sql query and return the first row
+ * @param {nterop.Reference<interop.Pointer>} db
+ * @param {string} query
+ *
+ * @return Array<unknown>
+ */
+function __execQueryReturnOneArrayRow(db: interop.Reference<interop.Pointer>, query: string): Array<unknown> {
+	const cursorRef = __execQueryAndReturnStatement(query, db);
+	const result = <Array<Array<unknown>>>__processCursor(cursorRef, ReturnType.AS_ARRAY);
+	return result.shift();
+}
+
+/**
  * Create an instance of sqlite3*, execute the dropping and creating tables scripts if exists
  * and if the version number is greater the database version
- * @param dbName String
- * @param options DbCreationOptions
- * @returns SqliteAccess
+ * @param {String} dbName
+ * @param {DbCreationOptions} options
+ * @returns {SqliteAccess}
  *
  * @throws
  * if database version < the user version
@@ -408,38 +446,6 @@ export function DbBuilder(dbName: string, options?: DbCreationOptions): SqliteAc
 	}
 
 	return new SqliteAccess(db, options.returnType);
-}
-
-/** private function
- * get or set the database user_version
- * @param db sqlite3*
- * @param version number
- *
- * @returns number|undefined
- */
-function __dbVersion(db: interop.Reference<interop.Pointer>, version?: number) {
-	const sql = "PRAGMA user_version";
-
-	if (isNaN(version)) {
-		version = __execQueryReturnOneArrayRow(db, sql).pop() as number;
-	} else {
-		const cursorRef = __execQueryAndReturnStatement(`${sql}=${version}`, db);
-		sqlite3_finalize(cursorRef);
-	}
-	return version;
-}
-
-/** private function
- * execute a sql query and return the first row
- * @param db sqlite3*
- * @param query string
- *
- * @return Array<unknown>
- */
-function __execQueryReturnOneArrayRow(db: interop.Reference<interop.Pointer>, query: string): Array<unknown> {
-	const cursorRef = __execQueryAndReturnStatement(query, db);
-	const result = <Array<Array<unknown>>>__processCursor(cursorRef, ReturnType.AS_ARRAY);
-	return result.shift();
 }
 
 /**

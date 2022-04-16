@@ -1,6 +1,6 @@
 export interface IDatabase {
 	/**
-	 * Insert a row into table with the values (key = columns and values = columns value)
+	 * Insert row into table with the values (key = columns and values = columns value)
 	 *
 	 * @param {string} tableName
 	 * @param {{ [key: string]: unknown; }} values
@@ -9,65 +9,66 @@ export interface IDatabase {
 	 */
 	insert(tableName: string, values: { [key: string]: unknown }): number;
 	/**
-	 * Replace a row values in the table with the values (key = columns and values = columns value).
+	 * Replace row values in the table with the values (key = columns and values = columns value).
 	 * The table must has a primary column to match with
 	 *
 	 * @param {string} tableName
 	 * @param {{ [key: string]: unknown; }} values
 	 *
-	 * @returns {number} rows affected
+	 * @returns {number} affected rows
 	 */
 	replace(tableName: string, values: { [key: string]: unknown }): number;
 	/**
-	 * Update a row values in the table with the values (key = columns and values = columns value) to the matched row.
+	 * Update row values in the table with the values (key = columns and values = columns value) to the matched row.
 	 *
 	 * @param {string} tableName
 	 * @param {{ [key: string]: unknown; }} values
 	 * @param {string} whereClause
 	 * @param {Array<unknown>} whereArs
 	 *
-	 * @returns {number} rows affected
+	 * @returns {number} affected rows
 	 */
 	update(tableName: string, values: { [key: string]: unknown }, whereClause: string, whereArs: Array<unknown>): number;
 	/**
 	 * Delete rows or a row from the table that matches the condition.
 	 *
 	 * @param {string} tableName
-	 * @param {string} whereClause - optional
-	 * @param {Array<unknown>} whereArs - optional
+	 * @param {string} whereClause
+	 * @param {Array<unknown>} whereArs
 	 *
-	 * @returns {number} rows affected
+	 * @returns {number} affected rows
 	 */
 	delete(tableName: string, whereClause?: string, whereArs?: Array<unknown>): number;
 	/**
-	 * Query the table data that matches the condition.
+	 * Execute a query, return QueryProcessor.
 	 * @see QueryProcessor for more information.
 	 *
 	 * @param {string} sql SQL Query. `SELECT [COLUMNS,] FROM TABLE WHERE column1=? and column2=?`. WHERE clause can be omitted
 	 * @param {Array<unknown>} conditionParams - optional if there is not WHERE clause in the sql param
 	 *
-	 * @returns {QueryProcessor<T>} QueryProcessor object that returns a Promise<Array<unknown>>
+	 * @returns {QueryProcessor<T>}
 	 */
 	select<T>(sql: string, conditionParams?: Array<unknown>): QueryProcessor<T>;
 
 	/**
-	 * Execute a query selector with the params passed in
+	 * Query the given table, return QueryProcessor
 	 * @see QueryProcessor for more information.
 	 *
-	 * @param {string} tableName
-	 * @param {Array<string>} columns - optional
-	 * @param {string} selection - optional
-	 * @param {Array<string>} selectionArgs - optional
-	 * @param {string} groupBy - optional
-	 * @param {string} orderBy - optional
-	 * @param {string} limit - optional
+	 * @param {string} param.tableName
+	 * @param {Array<string>} param.columns
+	 * @param {string} param.selection
+	 * @param {Array<unknown>} param.selectionArgs
+	 * @param {string} param.groupBy
+	 * @param {string} param.having
+	 * @param {string} param.orderBy
+	 * @param {string} param.limit
 	 *
-	 * @returns {QueryProcessor<T>} QueryProcessor object that returns a Promise<Array<unknown>>
+	 * @returns {QueryProcessor<T>}
 	 */
 	query<T>(param: {
 		tableName: string, columns?: Array<string>,
 		selection?: string, selectionArgs?: Array<unknown>,
-		groupBy?: string, orderBy?: string, limit?: string
+		groupBy?: string, having?: string, orderBy?: string, limit?: string
 	}): QueryProcessor<T>;
 
 	/**
@@ -101,7 +102,8 @@ export interface IDatabase {
 }
 
 /**
- * This enum indicate the format data return from database
+ * This enum indicate the data format that might be return
+ * @enum {number}
  */
 export const enum ReturnType {
 	AS_OBJECT,
@@ -141,14 +143,23 @@ export function parseToDbValue(value: unknown) {
  * Parse value to JS
  * @param {unknown} value
  */
-export function parseToJsValue(value: unknown) {
-	let parsedValue = value;
+export function parseToJsValue(value: unknown): unknown {
 	try {
-		parsedValue = JSON.parse(value as string);
+		return JSON.parse(value as string);
 	} catch { }
-	return parsedValue;
+	return value;
 }
 
+/**
+ * Run when the database is first created and when db version change
+ * @param {number} currDbVersion
+ * @param {DbCreationOptions} options
+ * @param {(script: string) => void} callback
+ * 
+ * @throws Error when new db version is less than current db version
+ * 
+ * @returns void
+ */
 export function runInitialDbScript(
 	currDbVersion: number,
 	options: DbCreationOptions,
@@ -176,10 +187,8 @@ export function runInitialDbScript(
 
 
 /**
- * Let it add preprocessing function to each row matched by SQL query, each function return a Promise object.
+ * Let you add preprocessing function to each matched row by SQL query.
  * The map and reduce functions are similar to the functions apply to an Array,
- * just one preprocessing function is apply to the data per call.
- * The process function is call just if the map or reduce function will not be apply.
  */
 export class QueryProcessor<T> {
 	private _executorFn: ExecutorType;
@@ -188,13 +197,24 @@ export class QueryProcessor<T> {
 		this._executorFn = executorFn;
 	}
 
-	process(transformer?: MapCallback): Promise<T>;
+	/**
+	 * Execute the SQL query, calls transformer function on each matched row if any
+	 * @param {ReduceCallback | MapCallback} transformer
+	 * @param {unknown} initialValue  optional
+	 * @returns Promise<T>
+	 */
 	process(transformer?: ReduceCallback, initialValue?: unknown): Promise<T>;
+	process(transformer?: MapCallback): Promise<T>;
 	process(transformer?: ReduceCallback | MapCallback, initialValue?: unknown): Promise<T> {
 		const transformerAgent = { transform: transformer, initialValue, type: 0 };
 		return new Promise<T>(this._executorFn.bind(null, transformerAgent));
 	}
 
+	/**
+	 * Execute the SQL query, calls transformer function on each matched row if any, return IterableIterator
+	 * @param {MapCallback} transformer 
+	 * @returns Promise<IterableIterator<T>>
+	 */
 	asGenerator(transformer?: MapCallback): Promise<IterableIterator<T>> {
 		const transformerAgent = { transform: transformer, type: 1 };
 		return new Promise<IterableIterator<T>>(this._executorFn.bind(null, transformerAgent));
@@ -211,15 +231,46 @@ export type ReduceCallback = (accumulator: unknown, row: unknown, index: number)
 export type TransformerType = { transform: ReduceCallback | MapCallback, initialValue?: unknown, type: number };
 
 export enum FIELD_TYPE {
-	NULL = 0,
+	NULL_ANDROID = 0,
+	NULL_SQLITE = 5,
 	INTEGER = 1,
 	FLOAT = 2,
 	STRING = 3,
 	BLOB = 4
 }
 
+/**
+ * Parse db column value, return string | number | Array | Object
+ * @param {FIELD_TYPE} fieldType 
+ * @param {number} index 
+ * @param {(colIndex: number, type: FIELD_TYPE) => unknown} callback 
+ * @returns unknown
+ */
 export function readDbValue(fieldType: FIELD_TYPE, index: number, callback: (colIndex: number, type: FIELD_TYPE) => unknown) {
+	if (FIELD_TYPE[fieldType].includes("NULL")) return null;
 	return parseToJsValue(
 		callback(index, fieldType)
 	);
+}
+
+/**
+ * Replace the question mark in the query ith the values
+ *
+ * @param {string} target
+ * @param {Array<unknown>} values
+ * @returns string
+ */
+export function replaceQuestionMark(target: string, values: Array<unknown>): string {
+	if (!target) return null;
+	if (!values) return target;
+
+	let counter = 0;
+	return target.replace(/\?/g, () => {
+		const param = values[counter++];
+		if (Array.isArray(param)) {
+			return (param as Array<unknown>).join();
+		}
+
+		return parseToDbValue(param).toString();
+	});
 }

@@ -9,7 +9,8 @@ import {
 	readDbValue,
 	MapCallback,
 	TransformerType,
-	ReduceCallback
+	ReduceCallback,
+	replaceQuestionMark
 } from "./sqlite-access.common";
 
 /**
@@ -32,8 +33,8 @@ class SqliteAccess implements IDatabase {
 	 *
 	 * @returns {number}  id inserted
 	 */
-	insert(table: string, values: { [key: string]: unknown; }): number {
-		return this.db.insert(table, null, __mapToContentValues(values));
+	insert(tableName: string, values: { [key: string]: unknown; }): number {
+		return this.db.insert(tableName, null, __mapToContentValues(values));
 	}
 
 	/**
@@ -43,10 +44,10 @@ class SqliteAccess implements IDatabase {
 	 * @param {string} tableName
 	 * @param {{ [key: string]: unknown; }} values
 	 *
-	 * @returns {number} rows affected
+	 * @returns {number} replace id
 	 */
-	replace(table: string, values: { [key: string]: unknown; }): number {
-		return this.db.replace(table, null, __mapToContentValues(values));
+	replace(tableName: string, values: { [key: string]: unknown; }): number {
+		return this.db.replace(tableName, null, __mapToContentValues(values));
 	}
 
 	/**
@@ -59,8 +60,8 @@ class SqliteAccess implements IDatabase {
 	 *
 	 * @returns {number} rows affected
 	 */
-	update(table: string, values: { [key: string]: unknown; }, whereClause: string, whereArs: unknown[]): number {
-		return this.db.update(table, __mapToContentValues(values), whereClause, __objectArrayToStringArray(whereArs));
+	update(tableName: string, values: { [key: string]: unknown; }, whereClause: string, whereArgs: unknown[]): number {
+		return this.db.update(tableName, __mapToContentValues(values), replaceQuestionMark(whereClause, whereArgs), null);
 	}
 
 	/**
@@ -72,8 +73,8 @@ class SqliteAccess implements IDatabase {
 	  *
 	  * @returns {number} rows affected
 	  */
-	delete(table: string, whereClause?: string, whereArgs?: unknown[]): number {
-		return this.db.delete(table, whereClause, __objectArrayToStringArray(whereArgs));
+	delete(tableName: string, whereClause?: string, whereArgs?: unknown[]): number {
+		return this.db.delete(tableName, replaceQuestionMark(whereClause, whereArgs), null);
 	}
 
 	/**
@@ -83,12 +84,12 @@ class SqliteAccess implements IDatabase {
 	 * @param {string} sql SQL Query. `SELECT [COLUMNS,] FROM TABLE WHERE column1=? and column2=?`. WHERE clause can be omitted
 	 * @param {Array<unknown>} conditionParams - optional if there is not WHERE clause in the sql param
 	 *
-	 * @returns {QueryProcessor} QueryProcessor object that returns a Promise<Array<unknown>>
+	 * @returns {QueryProcessor<T>}
 	 */
 	select<T>(sql: string, params?: unknown[]): QueryProcessor<T> {
 		return new QueryProcessor<T>((transformerAgent, resolve, reject) => {
 			try {
-				const cursor = this.db.rawQuery(sql, __objectArrayToStringArray(params));
+				const cursor = this.db.rawQuery(replaceQuestionMark(sql, params) || sql,  null);
 				if (transformerAgent && transformerAgent.type === 1 /*Generator*/) {
 					return resolve(__processCursorReturnGenerator(cursor, this.returnType, transformerAgent));
 				}
@@ -104,25 +105,26 @@ class SqliteAccess implements IDatabase {
 	 * Execute a query selector with the params passed in
 	 * @see QueryProcessor for more information.
 	 *
-	 * @param {string} tableName
-	 * @param {Array<string>} columns - optional
-	 * @param {string} selection - optional
-	 * @param {Array<string>} selectionArgs - optional
-	 * @param {string} groupBy - optional
-	 * @param {string} orderBy - optional
-	 * @param {string} limit - optional
+	 * @param {string} param.tableName
+	 * @param {Array<string>} param.columns
+	 * @param {string} param.selection
+	 * @param {Array<unknown>} param.selectionArgs
+	 * @param {string} param.groupBy
+	 * @param {string} param.having
+	 * @param {string} param.orderBy
+	 * @param {string} param.limit
 	 *
-	 * @returns {QueryProcessor} QueryProcessor object that returns a Promise<Array<unknown>>
+	 * @returns {QueryProcessor} QueryProcessor
 	 */
-	query<T>(param: { tableName: string, columns?: string[], selection?: string, selectionArgs?: unknown[], groupBy?: string, orderBy?: string, limit?: string }): QueryProcessor<T> {
+	query<T>(param: { tableName: string, columns?: string[], selection?: string, selectionArgs?: unknown[], groupBy?: string, having?: string, orderBy?: string, limit?: string }): QueryProcessor<T> {
 		return new QueryProcessor<T>((transformerAgent, resolve, error) => {
 			try {
 				const cursor = this.db.query(
 					param.tableName,
 					param.columns,
-					param.selection,
-					__objectArrayToStringArray(param.selectionArgs),
+					replaceQuestionMark(param.selection, param.selectionArgs), null,
 					param.groupBy,
+					param.having,
 					param.orderBy,
 					param.limit);
 
@@ -185,11 +187,11 @@ class SqliteAccess implements IDatabase {
 }
 
 /** private function
- * Curring function to loop android.database.Cursor
- * @param cursor android.database.Cursor
- * @param returnType: ReturnType
+ * Function to loop android.database.Cursor
+ * @param {android.database.Cursor} cursor
+ * @param {ReturnType} returnType
  *
- * @returns unknown;
+ * @returns Array<unknown> | unknown;
  */
 function __processCursor(cursor: android.database.Cursor, returnType: ReturnType, transformerAgent?: TransformerType) {
 	let result: Array<unknown> | unknown = (transformerAgent && transformerAgent.initialValue) || [];
@@ -212,6 +214,15 @@ function __processCursor(cursor: android.database.Cursor, returnType: ReturnType
 	return result;
 }
 
+/**
+ * Process each row
+ * @generator
+ * @function __processCursorGenerator
+ * @yields {unknown} row
+ * @param {android.database.Cursor} cursor 
+ * @param {ReturnType} returnType 
+ * @param {TransformerType} transformerAgent 
+ */
 function* __processCursorReturnGenerator(cursor: android.database.Cursor, returnType: ReturnType, transformerAgent?: TransformerType) {
 	if (cursor.getCount() > 0) {
 		while (cursor.moveToNext()) {
@@ -229,12 +240,11 @@ function* __processCursorReturnGenerator(cursor: android.database.Cursor, return
  * Process the sqlite cursor and return a
  * js object with column/value or an array row
  *
- * @param cursor android.database.Cursor
- * @param returnType ReturnType
- * @returns JS array of object like {[column:string]: unknown} or Array<unknown>.
+ * @param {android.database.Cursor} cursor
+ * @param {ReturnType} returnType
+ * @returns {Array<unknown> | Record<string, unknown>}
  */
-function __getRowValues(cursor: android.database.Cursor, returnType: ReturnType): unknown {
-
+function __getRowValues(cursor: android.database.Cursor, returnType: ReturnType): Array<unknown> | Record<string, unknown> {
 	const rowValue: Array<unknown> | Record<string, unknown> = returnType === ReturnType.AS_ARRAY ? [] : {};
 	const columnCount: number = cursor.getColumnCount();
 	const fn = (col: number) => cursor.getString(col);
@@ -256,8 +266,8 @@ function __getRowValues(cursor: android.database.Cursor, returnType: ReturnType)
 
 /** private function
  * open or create a read-write database, permanently or in memory
- * @param dbName string database name
- * @param mode number openness mode
+ * @param {string} dbName database name
+ * @param {number} mode openness mode
  * @returns android.database.sqlite.SQLiteDatabase
  */
 function __openCreateDataBase(dbName: string, mode: number): android.database.sqlite.SQLiteDatabase {
@@ -279,7 +289,7 @@ function __openCreateDataBase(dbName: string, mode: number): android.database.sq
 
 /** private function
  * Turn an Array of unknown to Array of string to match android API
- * @param params Array<unknown> sql queries params
+ * @param {Array<unknown>} params sql queries params
  * @returns Array<string>
  */
 function __objectArrayToStringArray(params: Array<unknown>) {
@@ -289,7 +299,7 @@ function __objectArrayToStringArray(params: Array<unknown>) {
 	let value = null;
 	for (let i = 0, len = params.length; i < len; i++) {
 		if (Array.isArray(params[i])) {
-			stringArray.push((params[i] as Array<unknown>).join());
+			stringArray.push(`"${(params[i] as Array<unknown>).join()}"`);
 			continue;
 		}
 		value = parseToDbValue(params[i]);
@@ -304,10 +314,10 @@ function __objectArrayToStringArray(params: Array<unknown>) {
 
 /**
  * Map a key/value JS object to android.content.ContentValues
- * @param values { [key: string]: unknown; }
- * @returns android.content.ContentValues
+ * @param { unknown } values.key
+ * @returns {android.content.ContentValues}
  */
-function __mapToContentValues(values: { [key: string]: unknown; }) {
+function __mapToContentValues(values: { [key: string]: unknown; }): android.content.ContentValues {
 	const contentValues = new android.content.ContentValues();
 	let value = null;
 	for (const key in values) {
@@ -334,9 +344,9 @@ function __getContext() {
 /**
  * Create an instance of android.database.sqlite.SQLiteDatabase, execute the dropping and creating tables scripts if exists
  * and if the version number is greater the database version
- * @param dbName String
- * @param options DbCreationOptions
- * @returns SqliteAccess
+ * @param {string} dbName
+ * @param {DbCreationOptions} options
+ * @returns {SqliteAccess}
  *
  * @throws
  * if database version < the user version

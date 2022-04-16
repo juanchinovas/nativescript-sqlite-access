@@ -3,16 +3,16 @@ declare class SqliteAccess implements IDatabase {
     private db;
     private returnType;
     constructor(db: android.database.sqlite.SQLiteDatabase, returnType: ReturnType);
-    insert(table: string, values: {
+    insert(tableName: string, values: {
         [key: string]: unknown;
     }): number;
-    replace(table: string, values: {
+    replace(tableName: string, values: {
         [key: string]: unknown;
     }): number;
-    update(table: string, values: {
+    update(tableName: string, values: {
         [key: string]: unknown;
-    }, whereClause: string, whereArs: unknown[]): number;
-    delete(table: string, whereClause?: string, whereArgs?: unknown[]): number;
+    }, whereClause: string, whereArgs: unknown[]): number;
+    delete(tableName: string, whereClause?: string, whereArgs?: unknown[]): number;
     select<T>(sql: string, params?: unknown[]): QueryProcessor<T>;
     query<T>(param: {
         tableName: string;
@@ -20,6 +20,7 @@ declare class SqliteAccess implements IDatabase {
         selection?: string;
         selectionArgs?: unknown[];
         groupBy?: string;
+        having?: string;
         orderBy?: string;
         limit?: string;
     }): QueryProcessor<T>;

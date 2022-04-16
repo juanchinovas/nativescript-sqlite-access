@@ -11,7 +11,7 @@ declare class SqliteAccess implements IDatabase {
     }): number;
     update(tableName: string, values: {
         [key: string]: unknown;
-    }, whereClause: string, whereArs: unknown[]): number;
+    }, whereClause: string, whereArgs: unknown[]): number;
     delete(tableName: string, whereClause?: string, whereArgs?: unknown[]): number;
     select<T>(sql: string, conditionParams?: unknown[]): QueryProcessor<T>;
     query<T>(param: {
@@ -20,6 +20,7 @@ declare class SqliteAccess implements IDatabase {
         selection?: string;
         selectionArgs?: unknown[];
         groupBy?: string;
+        having?: string;
         orderBy?: string;
         limit?: string;
     }): QueryProcessor<T>;
