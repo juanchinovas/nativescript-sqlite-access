@@ -108,6 +108,10 @@ export interface IDatabase {
 	 * @returns {boolean}
 	 */
 	isClose(): boolean;
+	/**
+	 * Run multiple query on transation
+	 */
+	onTransaction<T>(callback: () => T): T;
 }
 
 /**

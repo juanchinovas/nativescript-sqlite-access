@@ -19,7 +19,7 @@ tns plugin add nativescript-sqlite-access@1.0.81
 `@nativescript/core?`
 
 ```bash
-tns plugin add nativescript-sqlite-access@1.1.0
+tns plugin add nativescript-sqlite-access@1.2.0
 ```
 The command above automatically installs the necessary files, as well as stores nativescript-sqlite-access as a dependency in your project's package.json file.
 

@@ -25,6 +25,7 @@ class SqliteAccess implements IDatabase {
 	 */
 	constructor(private db: android.database.sqlite.SQLiteDatabase, private returnType: ReturnType) { }
 
+
 	/**
 	 * Insert a row into table with the values (key = columns and values = columns value)
 	 *
@@ -213,6 +214,19 @@ class SqliteAccess implements IDatabase {
 
 	isClose(): boolean {
 		return this.db === null;
+	}
+
+	onTransaction<T>(callback: () => T): T {
+		try {
+			this.beginTransact();
+			const result: T  = callback();
+			this.commit();
+
+			return result;
+		} catch (error) {
+			this.rollback();
+			throw error;
+		}
 	}
 }
 

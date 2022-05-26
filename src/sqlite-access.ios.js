@@ -95,6 +95,18 @@ class SqliteAccess {
     isClose() {
         return this.db === null;
     }
+    onTransaction(callback) {
+        try {
+            this.beginTransact();
+            const result = callback();
+            this.commit();
+            return result;
+        }
+        catch (error) {
+            this.rollback();
+            throw error;
+        }
+    }
 }
 function __execQueryAndReturnStatement(sql, dbPointer) {
     let cursorRef = new interop.Reference();

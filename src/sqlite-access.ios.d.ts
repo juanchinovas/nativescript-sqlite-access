@@ -33,6 +33,7 @@ declare class SqliteAccess implements IDatabase {
     rollback(): void;
     close(): void;
     isClose(): boolean;
+    onTransaction<T>(callback: () => T): T;
 }
 export declare function DbBuilder(dbName: string, options?: DbCreationOptions): SqliteAccess;
 export * from "./sqlite-access.common";

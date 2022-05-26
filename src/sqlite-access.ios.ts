@@ -216,6 +216,19 @@ class SqliteAccess implements IDatabase {
 	isClose(): boolean {
 		return this.db === null;
 	}
+
+	onTransaction<T>(callback: () => T): T {
+		try {
+			this.beginTransact();
+			const result: T  = callback();
+			this.commit();
+
+			return result;
+		} catch (error) {
+			this.rollback();
+			throw error;
+		}
+	}
 }
 
 /** private function

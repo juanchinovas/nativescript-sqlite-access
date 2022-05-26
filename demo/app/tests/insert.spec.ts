@@ -34,7 +34,7 @@ describe("#insert()", () => {
 
 	describe("Transaction", () => {
 		describe("Commit", () => {
-			it("shoould committed the insert", () => {
+			it("should committed the insert", () => {
 				database.beginTransact();
 				const insertedId = database.insert(databaseTables.PERSONS, {
 					name: "Power Ranger"
@@ -44,7 +44,7 @@ describe("#insert()", () => {
 			});
 		});
 		describe("Roollback", () => {
-			it("shoould rollback the inserts", async () => {
+			it("should rollback the inserts", async () => {
 				database.beginTransact();
 				database.insert(databaseTables.PERSONS, {
 					name: "Power Ranger 1"
@@ -57,12 +57,54 @@ describe("#insert()", () => {
 				});
 				database.rollback();
 		
-				const resutls = await database.select(`SELECT COUNT(*) account FROM ${databaseTables.PERSONS}`)
+				const results = await database.select(`SELECT name FROM ${databaseTables.PERSONS}`)
 					.process() as Array<Record<string, unknown>>;
 		
 				expect(
-					resutls.filter( p => [ "Power Ranger 1", "Power Ranger 2", "Power Ranger 3" ].includes(p.name as string))
+					results.filter( p => [ "Power Ranger 1", "Power Ranger 2", "Power Ranger 3" ].includes(p.name as string))
 				).to.deep.equal([]);
+			});
+		});
+		describe("onTransaction", () => {
+			it("should commit the inserts", async () => {
+				database.onTransaction(() => {
+					database.insert(databaseTables.PERSONS, {
+						name: "Power Ranger commit1"
+					});
+					database.insert(databaseTables.PERSONS, {
+						name: "Power Ranger commit2"
+					});
+					database.insert(databaseTables.PERSONS, {
+						name: "Power Ranger commit3"
+					});
+				});
+		
+				const results = await database.select<Array<Record<string, unknown>>>(`SELECT name FROM ${databaseTables.PERSONS}`)
+					.process();
+
+				expect(
+					results.map( p => p.name)
+				).to.deep.equal([ "Power Ranger", "Power Ranger commit1", "Power Ranger commit2", "Power Ranger commit3" ]);
+			});
+			it("should throw on rollback", async () => {
+				expect(
+					() => database.onTransaction(() => {
+						database.insert(databaseTables.PERSONS, {
+							name: "Power Ranger rollback1"
+						});
+						database.insert(databaseTables.PERSONS, {
+							name: "Power Ranger rollback2"
+						});
+	
+						database.insert(databaseTables.PERSONS, {
+							_id: "Power Ranger rollback3"
+						});
+	
+						database.insert(databaseTables.PERSONS, {
+							name: "Power Ranger rollback3"
+						});
+					})
+				).to.throws()
 			});
 		});
 	});
